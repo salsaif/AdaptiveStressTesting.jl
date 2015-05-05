@@ -1,3 +1,5 @@
+include("MDP.jl") #TODO: restructure so that we don't need to do this
+
 module MCTSdpw
 
 # This module implements Monte Carlo Tree Search with double progressive widening.
@@ -10,7 +12,6 @@ module MCTSdpw
 #dynamic resource allocation'
 
 using MDP
-using auxfuncs
 using CPUTime
 import MDP: simulate
 

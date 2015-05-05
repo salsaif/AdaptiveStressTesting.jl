@@ -1,14 +1,15 @@
 #Makes and deterministic MDP from a Markov model by manipulating the global random seed
 #Author: Ritchie Lee
 
-# TODO: Consider renaming to RLESMDPs or another more meaningful name
-module RLESMDPImpl
+include("RNGTools.jl")
+include("MCTSdpw.jl")
+
+module RLESMDPs
 
 # TODO: Consider extracting ObserverImpl into its own package
 using SISLES.ObserverImpl
 import SISLES.addObserver
 
-# TODO: Separate MDP into its own package (alternatively, test with Jonathan's original package)
 import MDP: State, Action, TransitionModel
 using RNGTools
 
@@ -20,7 +21,7 @@ export RLESMDP, RLESMDP_params, getTransitionModel, uniform_policy,
 type RLESMDP_params
 
   max_steps::Int64 #safety for runaways in sim
-  action_counter_reset::Union(Nothing,Uint32) #reset to this action_counter value on initialize()
+  action_counter_reset::Union(Nothing, Uint32) #reset to this action_counter value on initialize()
   action_counter_init::Uint32 #initial value of action_counter on construct
 
   RLESMDP_params() = new()
@@ -99,7 +100,7 @@ function getTransitionModel(mdp::RLESMDP)
       mdp.action_counter = mdp.params.action_counter_reset
     end
 
-    s = ESState(mdp.t_index,0,nothing,ESAction())
+    s = ESState(mdp.t_index, 0, nothing, ESAction())
     s.hash = mdp.sim_hash = hash(s) #overwrites 0
 
     return s
@@ -113,11 +114,11 @@ function getTransitionModel(mdp::RLESMDP)
 
     set_gv_rng_state(a0.seed)
 
-    notifyObserver(mdp,"action_seq", Any[mdp.t_index, a0])
+    notifyObserver(mdp, "action_seq", Any[mdp.t_index, a0])
 
     mdp.step(mdp.sim) #TODO: move the hash generation inside step?
 
-    s1 = ESState(mdp.t_index,0,s0,a0) #TODO: simplify this two-step hash process
+    s1 = ESState(mdp.t_index, 0, s0, a0) #TODO: simplify this two-step hash process
     s1.hash = mdp.sim_hash = hash(s1) #overwrites 0
 
     r = mdp.get_reward(mdp.sim)
@@ -175,3 +176,5 @@ function goToState(mdp::RLESMDP, targetState::ESState)
 end
 
 end #module
+
+include("auxfuncs.jl")
