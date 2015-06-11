@@ -123,7 +123,7 @@ function getTransitionModel(mdp::RLESMDP)
 
     r = mdp.get_reward(mdp.sim)
 
-    return s1, r
+    return (s1, r)
   end
 
   function isEndState(s::ESState)
@@ -146,6 +146,7 @@ function actionsToThisState(s::ESState)
 
   actions = ESAction[]
 
+  #Tracing up the tree relieves us from storing the entire history of actions at each node
   while s.parent != nothing
     prepend!(actions, [s.action])
     s = s.parent
