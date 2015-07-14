@@ -7,7 +7,7 @@ include("MCTSdpw.jl")
 module RLESMDPs
 
 # TODO: Consider extracting ObserverImpl into its own package
-using SISLES.ObserverImpl
+using SISLES.ObserverImpl #FIXME: remove dependency on SISLES...
 import SISLES.addObserver
 
 import MDP: State, Action, TransitionModel
@@ -113,10 +113,13 @@ function getTransitionModel(mdp::RLESMDP)
     mdp.t_index += 1
 
     set_gv_rng_state(a0.seed)
+    #saving the entire state of the MersenneTwister would require 770 * 4 bytes.  Instead, for now, just save seed.
+    #alternatively, seed can be an array of ints less than size 770 and the rest be generated using hash()
+    #would need to reach deep into components to use an RNG that is passed around.  TODO: consider doing this
 
-    notifyObserver(mdp, "action_seq", Any[mdp.t_index, a0])
+    notifyObserver(mdp, "action_seq", Any[mdp.t_index, a0]) #piggyback off SISLES.observers
 
-    mdp.step(mdp.sim) #TODO: move the hash generation inside step?
+    mdp.step(mdp.sim)
 
     s1 = ESState(mdp.t_index, 0, s0, a0) #TODO: simplify this two-step hash process
     s1.hash = mdp.sim_hash = hash(s1) #overwrites 0
@@ -178,4 +181,4 @@ end
 
 end #module
 
-include("auxfuncs.jl")
+include("auxfuncs.jl") #define hash functions for ESState and ESAction

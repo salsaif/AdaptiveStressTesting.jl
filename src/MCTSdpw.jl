@@ -136,7 +136,7 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
     dpw.s[s] = StateNode()
     return rollout(dpw,s,d)::Reward
   end
-  dpw.s[s].n += 1
+  dpw.s[s].n += one(Uint64)
   if length(dpw.s[s].a) <= dpw.p.k*dpw.s[s].n^dpw.p.alpha # criterion for new action generation
     a = dpw.f.getNextAction(s,dpw.rng) # action generation step
     if !haskey(dpw.s[s].a,a) # make sure we haven't already tried this action
@@ -150,6 +150,8 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
     nS = cS.n
     for i = 1:nA
       cA = cS.a[A[i]] # save current action
+      @assert nS > 0
+      @assert cA.n > 0
       UCT[i] = cA.q + dpw.p.ec*sqrt(log(nS)/cA.n)
     end
     a = A[indmax(UCT)] # choose action with highest UCT score
@@ -160,7 +162,7 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
       dpw.s[s].a[a].s[sp] = StateActionStateNode()
       dpw.s[s].a[a].s[sp].r = r
     else
-      dpw.s[s].a[a].s[sp].n += 1
+      dpw.s[s].a[a].s[sp].n += one(Uint64)
     end
   else # sample from transition states proportional to their occurence in the past
     cA = dpw.s[s].a[a]
@@ -177,11 +179,11 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
       i += 1
     end
     r = dpw.s[s].a[a].s[sp].r
-    dpw.s[s].a[a].s[sp].n += 1
+    dpw.s[s].a[a].s[sp].n += one(Uint64)
   end
   q = r + simulate(dpw,sp,d-1)
   cA = dpw.s[s].a[a]
-  cA.n = uint64(cA.n + 1)
+  cA.n += one(Uint64)
   cA.q += (q-cA.q)/cA.n
   dpw.s[s].a[a] = cA
   return q::Reward

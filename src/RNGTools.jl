@@ -1,6 +1,6 @@
 module RNGTools
 
-import Base.dSFMT.dsfmt_gv_init_by_array
+import Base.dSFMT.dsfmt_gv_init_by_array #not exported, so may not be stable in the future
 
 export set_gv_rng_state
 
