@@ -13,8 +13,6 @@ import SISLES.addObserver
 import MDP: State, Action, TransitionModel
 using RNGTools
 
-using Base.Test
-
 export RLESMDP, RLESMDP_params, getTransitionModel, uniform_policy,
         actionsToThisState, ESState, ESAction
 
@@ -173,7 +171,7 @@ function goToState(mdp::RLESMDP, targetState::ESState)
       s, r = model.getNextState(s, a, rng)
     end
 
-    @test s == targetState
+    @assert s == targetState
   end
 
   return targetState
