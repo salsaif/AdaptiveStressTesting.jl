@@ -32,33 +32,40 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-import Base: hash, isequal
-import RLESMDPs: ESState, ESAction
+module RNGWrapper
 
-function hash(a::ESAction)
-    return hash(a.seed)
+export RNG, set_global, next, next!, set_from_seed!, hash, ==, isequal
+
+using Iterators
+import Base: next, hash, ==, isequal
+
+type RNG
+  state::Vector{Uint32}
+end
+function RNG(len::Int64=1, seed::Int64=0)
+  return seed_to_state_itr(len, seed) |> collect |> RNG
 end
 
-function hash(s::ESState)
-  h = hash(s.t_index)
-  h = hash(h,hash(s.parent == nothing ? nothing : s.parent.hash))
-  h = hash(h,hash(s.action))
+set_from_seed!(rng::RNG, len::Int64, seed::Int64) = copy!(rng.state, seed_to_state_itr(len, seed))
+seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
 
-  return h
+set_global(rng::RNG) = set_gv_rng_state(rng.state)
+function next!(rng::RNG)
+  map!(hash_uint32, rng.state)
+  return rng
+end
+function next(rng0::RNG)
+  rng1 = deepcopy(rng0)
+  next!(rng1)
+  return rng1
 end
 
-function isequal(w::ESAction,v::ESAction)
-    return isequal(w.seed,v.seed)
-end
+hash_uint32(x) = uint32(hash(x))
+set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
+set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
 
-function isequal(w::ESState,v::ESState)
-    return hash(w) == hash(v)
-end
+hash(rng::RNG) = hash(rng.state)
+==(rng1::RNG, rng2::RNG) = rng1.state == rng2.state
+isequal(rng1::RNG, rng2::RNG) = rng1 == rng2
 
-function ==(w::ESAction,v::ESAction)
-    return isequal(w.seed,v.seed)
-end
-
-function ==(w::ESState,v::ESState)
-    return hash(w) == hash(v)
 end

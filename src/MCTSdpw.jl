@@ -1,5 +1,3 @@
-include("MDP.jl") #TODO: restructure so that we don't need to do this
-
 module MCTSdpw
 
 # This module implements Monte Carlo Tree Search with double progressive widening.
@@ -12,10 +10,10 @@ module MCTSdpw
 #dynamic resource allocation'
 
 using MDP
-using CPUTime
 import MDP: simulate
+using CPUTime
 
-export DPWParams, DPWModel, DPW, selectAction
+export DPWParams, DPWModel, DPW, selectAction, Depth
 
 typealias Depth Int64
 
@@ -54,29 +52,24 @@ type StateActionNode
   s::Dict{State,StateActionStateNode}
   n::Uint64
   q::Float64
-
-  StateActionNode() = new(Dict{State,StateActionStateNode}(),0,0)
 end
+StateActionNode() = StateActionNode(Dict{State, StateActionStateNode}(), 0, 0)
 
 type StateNode
   a::Dict{Action,StateActionNode}
   n::Uint64
-
-  StateNode() = new(Dict{Action,StateActionNode}(),0)
 end
+StateNode() = StateNode(Dict{Action, StateActionNode}(), 0)
 
 type DPW
-
   s::Dict{State,StateNode}
   p::DPWParams
   f::DPWModel
   rng::AbstractRNG
-
-  DPW(p::DPWParams,f::DPWModel) = new(Dict{State,StateNode}(),p,f,MersenneTwister(p.rng_seed))
 end
+DPW(p::DPWParams, f::DPWModel) = DPW(Dict{State, StateNode}(), p, f, MersenneTwister(p.rng_seed))
 
 function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::State)
-
   if !haskey(old_d,s)
     return new_d
   else
@@ -102,6 +95,7 @@ function selectAction(dpw::DPW,s::State; verbose::Bool=false)
   d = dpw.p.d
   starttime_us = CPUtime_us()
   for i = 1:dpw.p.n
+    dpw.f.model.goToState(s)
     simulate(dpw,s,d,verbose=verbose)
 
     if CPUtime_us() - starttime_us > dpw.p.maxtime_s * 1e6
@@ -111,6 +105,7 @@ function selectAction(dpw::DPW,s::State; verbose::Bool=false)
       break
     end
   end
+  dpw.f.model.goToState(s) #leave the sim in current state
   println("Size of sdict: ", length(dpw.s))
   cS = dpw.s[s]
   A = collect(keys(cS.a)) # extract the actions taken in current state

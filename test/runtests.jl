@@ -31,3 +31,39 @@
 # ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
+
+include("../src/RNGWrapper.jl")
+using RNGWrapper
+
+function test_rngwrapper()
+  println(rand(5))
+
+  println("These should be the same:")
+  rng = RNG(5)
+  set_global(rng)
+  println(rand(5))
+  set_global(rng)
+  println(rand(5))
+  println()
+
+  println("These should be the same:")
+  rng2 = RNG(4)
+  set_global(rng2)
+  println(rand(5))
+  set_global(rng2)
+  println(rand(5))
+  rng3 = deepcopy(rng2)
+  set_global(rng3)
+  println(rand(5))
+  println()
+
+  println("These should be the same:")
+  next!(rng)
+  set_global(rng)
+  println(rand(5))
+  set_global(rng)
+  println(rand(5))
+
+end
+
+test_rngwrapper()
