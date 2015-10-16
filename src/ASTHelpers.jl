@@ -32,41 +32,53 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RNGWrapper
-
-export RNG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
-
-using Iterators
-import Base: next, hash, ==, isequal, length
-
-type RNG
-  state::Vector{Uint32}
-end
-function RNG(len::Int64=1, seed::Int64=0)
-  return seed_to_state_itr(len, seed) |> collect |> RNG
+type ActionSequence{A <: Action}
+  sequence::Vector{A}
+  index::Int64
+  ActionSequence{A <: Action}(action_seq::Vector{A}) = new(action_seq, 1)
 end
 
-set_from_seed!(rng::RNG, len::Int64, seed::Int64) = copy!(rng.state, seed_to_state_itr(len, seed))
-seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
-
-set_global(rng::RNG) = set_gv_rng_state(rng.state)
-function next!(rng::RNG)
-  map!(hash_uint32, rng.state)
-  return rng
-end
-function next(rng0::RNG)
-  rng1 = deepcopy(rng0)
-  next!(rng1)
-  return rng1
+function action_seq_policy(action_seq::ActionSequence, s::State)
+  action = action_seq.sequence[action_seq.index]
+  action_seq.index += 1
+  return action
 end
 
-hash_uint32(x) = uint32(hash(x))
-set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
-set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
-
-length(rng::RNG) = length(rng.state)
-hash(rng::RNG) = hash(rng.state)
-==(rng1::RNG, rng2::RNG) = rng1.state == rng2.state
-isequal(rng1::RNG, rng2::RNG) = rng1 == rng2
-
+function sample(ast::AdaptiveStressTest; verbose::Bool=true)
+  (reward, actions) = simulate(ast.dpw.f.model, ast.rng, uniform_policy, verbose=verbose)
 end
+
+function sample(ast::AdaptiveStressTest, nsamples::Int64; verbose::Bool=true)
+  #Samples are varied since ast.rng is not reset and sampling is done in series
+  #Parallel version will need deterministic splitting of ast.rng
+  f() = sample(ast, verbose=verbose) #avoids anonymous
+  map(f, 1:nsamples) #returns vector of tuples(reward, actions)
+end
+
+function samples_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
+  #Samples are varied since ast.rng is not reset and sampling is done in series
+  model = ast.dpw.f.model
+  starttime_us = CPUtime_us()
+  results = Array((Float64, Vector{Action}), 0)
+  while true #this structure guarantees at least 1 sample
+    tup = direct_sample(ast, verbose=verbose)
+    push!(results, tup)
+    if CPUtime_us() - starttime_us > maxtime_s * 1e6
+      break
+    end
+  end
+  return results #nsamples = length(results)
+end
+
+#Starts MCTS
+function stresstest(ast::AdaptiveStressTest; verbose::Bool=true)
+  return (mcts_reward, action_seq) = simulate(ast.dpw.f.model, ast.dpw, selectAction, verbose=verbose)
+end
+
+function play_sequence{A <: Action}(model::TransitionModel, actions::Vector{A}; verbose::Bool=true)
+  reward2, actions2 = direct_sample(model, ActionSequence(actions), policy, verbose=verbose)
+  @assert actions == actions2 #check replay
+  return (reward2, actions2)
+end
+
+

@@ -45,7 +45,9 @@ include("RNGWrapper.jl")
 module AdaptiveStressTesting
 
 # TODO: extract ObserverImpl into its own package
-using SISLES.ObserverImpl #FIXME: remove dependency on SISLES... this seems to pollute the namespace with all of SISLES
+#FIXME: remove dependency on SISLES...
+#this seems to pollute the namespace with all of SISLES
+using SISLES.ObserverImpl
 import SISLES.addObserver
 
 using MDP
@@ -54,6 +56,9 @@ import Base: hash, isequal, ==
 
 export AdaptiveStressTest, ASTParams, get_transition_model, uniform_policy, get_action_sequence,
             ASTState, ASTAction
+
+include("ASTSim.jl")
+export sample, samples_timed, play_sequence, stresstest
 
 const DEFAULT_RNGLENGTH = 3
 
@@ -80,6 +85,8 @@ type AdaptiveStressTest
   reset_rng::Union(Nothing, RNG)
   observer::Observer
 
+  transition_model::TransitionModel
+
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function, step_fn::Function,
                    isterminal_fn::Function, get_reward_fn::Function)
     ast = new()
@@ -93,7 +100,7 @@ type AdaptiveStressTest
     ast.rng = RNG(p.rng_length, p.init_seed)
     ast.reset_rng = p.reset_seed != nothing ? RNG(p.rng_length, p.reset_seed) : nothing
     ast.observer = Observer()
-
+    ast.transition_model = get_transition_model(ast)
     return ast
   end
 end
@@ -120,18 +127,14 @@ addObserver(ast::AdaptiveStressTest, f::Function) = _addObserver(ast, f)
 addObserver(ast::AdaptiveStressTest, tag::String, f::Function) = _addObserver(ast, tag, f)
 
 function get_transition_model(ast::AdaptiveStressTest)
-
   function get_initial_state(rng::AbstractRNG) #rng is unused
     ast.t_index = 1
     ast.initialize(ast.sim)
-
     if ast.reset_rng != nothing #reset if specified
       copy!(ast.rng, ast.reset_rng)
     end
-
     s = ASTState(ast.t_index, nothing, ASTAction())
     ast.sim_hash = s.hash
-
     return s
   end
 
@@ -150,7 +153,6 @@ function get_transition_model(ast::AdaptiveStressTest)
     s1 = ASTState(ast.t_index, s0, a0)
     ast.sim_hash = s1.hash
     r = ast.get_reward(ast.sim)
-
     return (s1, r)
   end
 
@@ -161,7 +163,6 @@ function get_transition_model(ast::AdaptiveStressTest)
 
   function go_to_state(target_state::ASTState)
     rng = MersenneTwister() #not used. #TODO: remove this
-
     #Get to state s by traversing starting from initial state
     s = get_initial_state(rng)
     for a = get_action_sequence(target_state)
@@ -175,9 +176,9 @@ function get_transition_model(ast::AdaptiveStressTest)
                          go_to_state)
 end
 
-function uniform_policy(ast::AdaptiveStressTest, s0::ASTState)
-  next!(ast.rng)
-  return ASTAction(deepcopy(ast.rng))
+function uniform_policy(rng::RNG, s0::ASTState)
+  next!(rng)
+  return ASTAction(deepcopy(rng))
 end
 
 function get_action_sequence(s::ASTState)
