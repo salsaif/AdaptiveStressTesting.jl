@@ -32,53 +32,31 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-type ActionSequence{A <: Action}
-  sequence::Vector{A}
-  index::Int64
-  ActionSequence{A <: Action}(action_seq::Vector{A}) = new(action_seq, 1)
+module ASTTest
+
+export TestSimParams, TestSim, initialize, step, isterminal
+
+type TestSimParams
+  endtime::Int64
+end
+TestSimParams() = TestSimParams(10)
+
+type TestSim
+  p::TestSimParams #parameters
+  t::Int64
+end
+TestSim(params::TestSimParams) = TestSim(params, 0)
+
+function initialize(sim::TestSim)
+  @show sim.t = 0
 end
 
-function action_seq_policy(action_seq::ActionSequence, s::State)
-  action = action_seq.sequence[action_seq.index]
-  action_seq.index += 1
-  return action
+function step(sim::TestSim)
+  @show sim.t += 1
 end
 
-function sample(ast::AdaptiveStressTest; verbose::Bool=true)
-  (reward, actions) = simulate(ast.dpw.f.model, ast.rng, uniform_policy, verbose=verbose)
+function isterminal(sim::TestSim)
+  sim.t >= sim.p.endtime
 end
 
-function sample(ast::AdaptiveStressTest, nsamples::Int64; verbose::Bool=true)
-  #Samples are varied since ast.rng is not reset and sampling is done in series
-  #Parallel version will need deterministic splitting of ast.rng
-  f() = sample(ast, verbose=verbose) #avoids anonymous
-  map(f, 1:nsamples) #returns vector of tuples(reward, actions)
-end
-
-function samples_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
-  #Samples are varied since ast.rng is not reset and sampling is done in series
-  model = ast.dpw.f.model
-  starttime_us = CPUtime_us()
-  results = Array((Float64, Vector{Action}), 0)
-  while true #this structure guarantees at least 1 sample
-    tup = direct_sample(ast, verbose=verbose)
-    push!(results, tup)
-    if CPUtime_us() - starttime_us > maxtime_s * 1e6
-      break
-    end
-  end
-  return results #nsamples = length(results)
-end
-
-#Starts MCTS
-function stresstest(ast::AdaptiveStressTest; verbose::Bool=true)
-  return (mcts_reward, action_seq) = simulate(ast.dpw.f.model, ast.dpw, selectAction, verbose=verbose)
-end
-
-function play_sequence{A <: Action}(model::TransitionModel, actions::Vector{A}; verbose::Bool=true)
-  reward2, actions2 = direct_sample(model, ActionSequence(actions), policy, verbose=verbose)
-  @assert actions == actions2 #check replay
-  return (reward2, actions2)
-end
-
-
+end #module

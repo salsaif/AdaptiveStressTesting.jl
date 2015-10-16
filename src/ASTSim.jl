@@ -32,41 +32,55 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RNGWrapper
+using CPUTime
+using MDP
 
-export RSG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
-
-using Iterators
-import Base: next, hash, ==, isequal, length
-
-type RSG #Seed generator
-  state::Vector{Uint32}
+type ActionSequence{A <: Action}
+  sequence::Vector{A}
+  index::Int64
 end
-function RSG(len::Int64=1, seed::Int64=0)
-  return seed_to_state_itr(len, seed) |> collect |> RSG
-end
+ActionSequence{A <: Action}(action_seq::Vector{A}) = ActionSequence(action_seq, 1)
 
-set_from_seed!(rsg::RSG, len::Int64, seed::Int64) = copy!(rsg.state, seed_to_state_itr(len, seed))
-seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
-
-set_global(rsg::RSG) = set_gv_rng_state(rsg.state)
-function next!(rsg::RSG)
-  map!(hash_uint32, rsg.state)
-  return rsg
-end
-function next(rsg0::RSG)
-  rsg1 = deepcopy(rsg0)
-  next!(rsg1)
-  return rsg1
+function action_seq_policy(action_seq::ActionSequence)
+  action = action_seq.sequence[action_seq.index]
+  action_seq.index += 1
+  return action
 end
 
-hash_uint32(x) = uint32(hash(x))
-set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
-set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
+# Compatible with MDP / MCTSdpw
+action_seq_policy(action_seq::ActionSequence, s::State) = action_seq_policy(action_seq)
 
-length(rsg::RSG) = length(rsg.state)
-hash(rsg::RSG) = hash(rsg.state)
-==(rsg1::RSG, rsg2::RSG) = rsg1.state == rsg2.state
-isequal(rsg1::RSG, rsg2::RSG) = rsg1 == rsg2
+#compatible with policy() in MDP
+uniform_policy(ast::AdaptiveStressTest, s::ASTState) = uniform_policy(ast.rsg, s)
+uniform_policy(rsg::RSG, s::ASTState) = random_action(rsg)
 
+function sample(ast::AdaptiveStressTest; verbose::Bool=true)
+  (reward, actions) = simulate(ast.transition_model, ast.rsg, uniform_policy, verbose=verbose)
 end
+
+function sample(ast::AdaptiveStressTest, nsamples::Int64; verbose::Bool=true)
+  #Samples are varied since ast.rsg is not reset and sampling is done in series
+  #Parallel version will need deterministic splitting of ast.rsg
+  [sample(ast, verbose=verbose) for i = 1:nsamples] #returns vector of tuples(reward, actions)
+end
+
+function samples_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
+  #Samples are varied since ast.rsg is not reset and sampling is done in series
+  starttime_us = CPUtime_us()
+  results = Array((Float64, Vector{Action}), 0)
+  while true #do while structure guarantees at least 1 sample
+    tup = sample(ast, verbose=verbose)
+    push!(results, tup)
+    if CPUtime_us() - starttime_us > maxtime_s * 1e6
+      break
+    end
+  end
+  return results #nsamples = length(results)
+end
+
+function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
+  reward2, actions2 = simulate(ast.transition_model, ActionSequence(actions), action_seq_policy, verbose=verbose)
+  @assert actions == actions2 #check replay
+  return (reward2, actions2)
+end
+

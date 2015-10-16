@@ -32,41 +32,30 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RNGWrapper
+include("ASTTest.jl")
+using ASTTest
+using AdaptiveStressTesting
 
-export RSG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
+const ENDTIME = 10 #sim endtime
+const RNG_LENGTH = 2
 
-using Iterators
-import Base: next, hash, ==, isequal, length
+sim_params = TestSimParams(ENDTIME)
+sim = TestSim(sim_params)
+get_reward(sim::TestSim) = 1 #TODO: reward needs to match form in paper
 
-type RSG #Seed generator
-  state::Vector{Uint32}
-end
-function RSG(len::Int64=1, seed::Int64=0)
-  return seed_to_state_itr(len, seed) |> collect |> RSG
-end
+ast_params = ASTParams(ENDTIME, RNG_LENGTH, 0, nothing)
+ast = AdaptiveStressTest(ast_params, sim)
+sample(ast, 5)
 
-set_from_seed!(rsg::RSG, len::Int64, seed::Int64) = copy!(rsg.state, seed_to_state_itr(len, seed))
-seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
-
-set_global(rsg::RSG) = set_gv_rng_state(rsg.state)
-function next!(rsg::RSG)
-  map!(hash_uint32, rsg.state)
-  return rsg
-end
-function next(rsg0::RSG)
-  rsg1 = deepcopy(rsg0)
-  next!(rsg1)
-  return rsg1
-end
-
-hash_uint32(x) = uint32(hash(x))
-set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
-set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
-
-length(rsg::RSG) = length(rsg.state)
-hash(rsg::RSG) = hash(rsg.state)
-==(rsg1::RSG, rsg2::RSG) = rsg1.state == rsg2.state
-isequal(rsg1::RSG, rsg2::RSG) = rsg1 == rsg2
-
-end
+mcts_params = DPWParams()
+mcts_params.d = 50
+mcts_params.ec = 100
+mcts_params.n = 10
+mcts_params.k = 0.5
+mcts_params.alpha = 0.85
+mcts_params.kp = 1.0
+mcts_params.alphap = 0.0
+mcts_params.clear_nodes = true
+mcts_params.maxtime_s = realmax(Float64)
+mcts_params.rng_seed = uint64(0)
+stress_test(ast, mcts_params)

@@ -32,41 +32,19 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-module RNGWrapper
+using MCTSdpw
 
-export RSG, set_global, next, next!, set_from_seed!, hash, ==, isequal, length
+uniform_getAction(ast::AdaptiveStressTest) = uniform_getAction(ast.rsg)
 
-using Iterators
-import Base: next, hash, ==, isequal, length
-
-type RSG #Seed generator
-  state::Vector{Uint32}
-end
-function RSG(len::Int64=1, seed::Int64=0)
-  return seed_to_state_itr(len, seed) |> collect |> RSG
+function uniform_getAction(rsg::RSG)
+  policy(s::ASTState, rng::AbstractRNG) = random_action(rsg) #rng not used
+  return policy #function compatible with getAction() in MDP and MCTSdpw
 end
 
-set_from_seed!(rsg::RSG, len::Int64, seed::Int64) = copy!(rsg.state, seed_to_state_itr(len, seed))
-seed_to_state_itr(len::Int64, seed::Int64) = take(iterate(hash_uint32, seed), len)
-
-set_global(rsg::RSG) = set_gv_rng_state(rsg.state)
-function next!(rsg::RSG)
-  map!(hash_uint32, rsg.state)
-  return rsg
-end
-function next(rsg0::RSG)
-  rsg1 = deepcopy(rsg0)
-  next!(rsg1)
-  return rsg1
+#Starts MCTS
+function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
+  dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), uniform_getAction(ast.rsg))
+  dpw = DPW(mcts_params, dpw_model)
+  return (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, selectAction, verbose=verbose)
 end
 
-hash_uint32(x) = uint32(hash(x))
-set_gv_rng_state(i::Uint32) = set_gv_rng_state([i])
-set_gv_rng_state(a::Vector{Uint32}) = Base.dSFMT.dsfmt_gv_init_by_array(a) #not exported, so probably not stable
-
-length(rsg::RSG) = length(rsg.state)
-hash(rsg::RSG) = hash(rsg.state)
-==(rsg1::RSG, rsg2::RSG) = rsg1.state == rsg2.state
-isequal(rsg1::RSG, rsg2::RSG) = rsg1 == rsg2
-
-end

@@ -38,6 +38,7 @@
 #
 #Author: Ritchie Lee
 
+#for now... need to move this out of global
 include("MDP.jl")
 include("MCTSdpw.jl")
 include("RNGWrapper.jl")
@@ -54,21 +55,18 @@ using MDP
 using RNGWrapper
 import Base: hash, isequal, ==
 
-export AdaptiveStressTest, ASTParams, get_transition_model, uniform_policy, get_action_sequence,
-            ASTState, ASTAction
+export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model,
+        random_action, get_action_sequence, reset_rsg
 
-include("ASTSim.jl")
-export sample, samples_timed, play_sequence, stresstest
-
-const DEFAULT_RNGLENGTH = 3
+const DEFAULT_RSGLENGTH = 3
 
 type ASTParams
   max_steps::Int64 # safety for runaways in sim
-  rng_length::Int64 # dictates number of unique available random seeds
+  rsg_length::Int64 # dictates number of unique available random seeds
   init_seed::Int64 # initial value of seed on construct
   reset_seed::Union(Nothing, Int64) #reset to this seed value on initialize()
 end
-ASTParams() = ASTParams(0, DEFAULT_RNGLENGTH, 0, nothing)
+ASTParams() = ASTParams(0, DEFAULT_RSGLENGTH, 0, nothing)
 
 type AdaptiveStressTest
   params::ASTParams
@@ -81,11 +79,17 @@ type AdaptiveStressTest
   get_reward::Function #get_reward(sim)
 
   t_index::Int64 #starts at 1 and counts up in ints
-  rng::RNG #AST RNG
-  reset_rng::Union(Nothing, RNG)
+  rsg::RSG #random seed generator
+  initial_rsg::RSG #initial
+  reset_rsg::Union(Nothing, RSG) #reset to this RSG
   observer::Observer
 
   transition_model::TransitionModel
+
+  #shorthand assumes standard names from main
+  function AdaptiveStressTest(p::ASTParams, sim)
+    AdaptiveStressTest(p, sim, Main.initialize, Main.step, Main.isterminal, Main.get_reward)
+  end
 
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function, step_fn::Function,
                    isterminal_fn::Function, get_reward_fn::Function)
@@ -97,18 +101,19 @@ type AdaptiveStressTest
     ast.step = step_fn
     ast.isterminal = isterminal_fn
     ast.get_reward = get_reward_fn
-    ast.rng = RNG(p.rng_length, p.init_seed)
-    ast.reset_rng = p.reset_seed != nothing ? RNG(p.rng_length, p.reset_seed) : nothing
+    ast.rsg = RSG(p.rsg_length, p.init_seed)
+    ast.initial_rsg = deepcopy(ast.rsg)
+    ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
     ast.observer = Observer()
-    ast.transition_model = get_transition_model(ast)
+    ast.transition_model = transition_model(ast)
     return ast
   end
 end
 
 type ASTAction <: Action
-  rng::RNG
+  rsg::RSG
 end
-ASTAction(len::Int64=DEFAULT_RNGLENGTH, seed::Int64=0) = ASTAction(RNG(len, seed))
+ASTAction(len::Int64=DEFAULT_RSGLENGTH, seed::Int64=0) = ASTAction(RSG(len, seed))
 
 type ASTState <: State
   t_index::Int64 #sanity check that at least the time corresponds
@@ -126,12 +131,12 @@ end
 addObserver(ast::AdaptiveStressTest, f::Function) = _addObserver(ast, f)
 addObserver(ast::AdaptiveStressTest, tag::String, f::Function) = _addObserver(ast, tag, f)
 
-function get_transition_model(ast::AdaptiveStressTest)
+function transition_model(ast::AdaptiveStressTest)
   function get_initial_state(rng::AbstractRNG) #rng is unused
     ast.t_index = 1
     ast.initialize(ast.sim)
-    if ast.reset_rng != nothing #reset if specified
-      copy!(ast.rng, ast.reset_rng)
+    if ast.reset_rsg != nothing #reset if specified
+      ast.rsg = deepcopy(ast.reset_rsg)
     end
     s = ASTState(ast.t_index, nothing, ASTAction())
     ast.sim_hash = s.hash
@@ -141,7 +146,7 @@ function get_transition_model(ast::AdaptiveStressTest)
   function get_next_state(s0::ASTState, a0::ASTAction, rng::AbstractRNG) #rng is unused
     @assert ast.sim_hash == s0.hash
     ast.t_index += 1
-    set_global(a0.rng)
+    set_global(a0.rsg)
     #saving the entire state of the MersenneTwister would require 770 * 4 bytes.  Instead,
     # for now, just save seed. alternatively, seed can be an array of ints less than size 770
     # and the rest be generated using hash() would need to reach deep into components to use
@@ -176,9 +181,13 @@ function get_transition_model(ast::AdaptiveStressTest)
                          go_to_state)
 end
 
-function uniform_policy(rng::RNG, s0::ASTState)
-  next!(rng)
-  return ASTAction(deepcopy(rng))
+function reset_rsg!(ast::AdaptiveStressTest)
+  ast.rsg = deepcopy(ast.initial_rsg)
+end
+
+function random_action(rsg::RSG)
+  next!(rsg)
+  return ASTAction(deepcopy(rsg))
 end
 
 function get_action_sequence(s::ASTState)
@@ -191,7 +200,7 @@ function get_action_sequence(s::ASTState)
   return reverse!(actions)
 end
 
-hash(a::ASTAction) = hash(a.rng)
+hash(a::ASTAction) = hash(a.rsg)
 function hash(s::ASTState)
   h = hash(s.t_index)
   h = hash(h, hash(s.parent == nothing ? nothing : s.parent.hash))
@@ -199,9 +208,15 @@ function hash(s::ASTState)
   return h
 end
 
-==(w::ASTAction,v::ASTAction) = w.rng == v.rng
+==(w::ASTAction,v::ASTAction) = w.rsg == v.rsg
 ==(w::ASTState,v::ASTState) = hash(w) == hash(v)
-isequal(w::ASTAction,v::ASTAction) = isequal(w.rng,v.rng)
+isequal(w::ASTAction,v::ASTAction) = isequal(w.rsg,v.rsg)
 isequal(w::ASTState,v::ASTState) = hash(w) == hash(v)
+
+include("ASTSim.jl")
+export sample, samples_timed, play_sequence, uniform_policy
+
+include("AST_MCTS.jl") #mcts dpw
+export uniform_getAction, DPWParams, stress_test
 
 end #module
