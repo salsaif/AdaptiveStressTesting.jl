@@ -45,6 +45,8 @@ end
 function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
   dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), uniform_getAction(ast.rsg))
   dpw = DPW(mcts_params, dpw_model)
-  return (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, selectAction, verbose=verbose)
+  mcts_reward, action_seq = simulate(dpw.f.model, dpw, selectAction, verbose=verbose)
+  action_seq = convert(Vector{ASTAction}, action_seq) #from Vector{Action}
+  return (mcts_reward, action_seq)
 end
 

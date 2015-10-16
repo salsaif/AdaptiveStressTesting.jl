@@ -45,12 +45,6 @@ include("RNGWrapper.jl")
 
 module AdaptiveStressTesting
 
-# TODO: extract ObserverImpl into its own package
-#FIXME: remove dependency on SISLES...
-#this seems to pollute the namespace with all of SISLES
-using SISLES.ObserverImpl
-import SISLES.addObserver
-
 using MDP
 using RNGWrapper
 import Base: hash, isequal, ==
@@ -82,7 +76,6 @@ type AdaptiveStressTest
   rsg::RSG #random seed generator
   initial_rsg::RSG #initial
   reset_rsg::Union(Nothing, RSG) #reset to this RSG
-  observer::Observer
 
   transition_model::TransitionModel
 
@@ -104,7 +97,6 @@ type AdaptiveStressTest
     ast.rsg = RSG(p.rsg_length, p.init_seed)
     ast.initial_rsg = deepcopy(ast.rsg)
     ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
-    ast.observer = Observer()
     ast.transition_model = transition_model(ast)
     return ast
   end
@@ -128,9 +120,6 @@ function ASTState(t_index::Int64, parent::Union(Nothing, ASTState), action::ASTA
   return s
 end
 
-addObserver(ast::AdaptiveStressTest, f::Function) = _addObserver(ast, f)
-addObserver(ast::AdaptiveStressTest, tag::String, f::Function) = _addObserver(ast, tag, f)
-
 function transition_model(ast::AdaptiveStressTest)
   function get_initial_state(rng::AbstractRNG) #rng is unused
     ast.t_index = 1
@@ -151,8 +140,6 @@ function transition_model(ast::AdaptiveStressTest)
     # for now, just save seed. alternatively, seed can be an array of ints less than size 770
     # and the rest be generated using hash() would need to reach deep into components to use
     # an RNG that is passed around.  TODO: consider doing this
-
-    notifyObserver(ast, "action_seq", Any[ast.t_index, a0]) #piggyback off SISLES.observers
 
     ast.step(ast.sim)
     s1 = ASTState(ast.t_index, s0, a0)

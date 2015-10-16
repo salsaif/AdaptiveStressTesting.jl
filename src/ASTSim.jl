@@ -55,7 +55,9 @@ uniform_policy(ast::AdaptiveStressTest, s::ASTState) = uniform_policy(ast.rsg, s
 uniform_policy(rsg::RSG, s::ASTState) = random_action(rsg)
 
 function sample(ast::AdaptiveStressTest; verbose::Bool=true)
-  (reward, actions) = simulate(ast.transition_model, ast.rsg, uniform_policy, verbose=verbose)
+  reward, actions = simulate(ast.transition_model, ast.rsg, uniform_policy, verbose=verbose)
+  actions = convert(Vector{ASTAction}, actions) #from Vector{Action}
+  return (reward, actions)
 end
 
 function sample(ast::AdaptiveStressTest, nsamples::Int64; verbose::Bool=true)
@@ -80,6 +82,7 @@ end
 
 function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
   reward2, actions2 = simulate(ast.transition_model, ActionSequence(actions), action_seq_policy, verbose=verbose)
+  actions2 = convert(Vector{ASTAction}, actions2) #from Vector{Action}
   @assert actions == actions2 #check replay
   return (reward2, actions2)
 end
