@@ -53,10 +53,13 @@ end
 
 function step(sim::TestSim)
   @show sim.t += 1
+  return (0.0, isevent(sim), Inf)
 end
 
 function isterminal(sim::TestSim)
   sim.t >= sim.p.endtime
 end
+
+isevent(sim::TestSim) = false
 
 end #module

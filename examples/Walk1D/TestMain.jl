@@ -32,19 +32,25 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("ASTTest.jl")
-using ASTTest
+include("Walk1DTest.jl")
+using Walk1D
 using AdaptiveStressTesting
 
-const ENDTIME = 10 #sim endtime
+const MAXTIME = 20 #sim endtime
 const RNG_LENGTH = 2
 
-sim_params = TestSimParams(ENDTIME)
-sim = TestSim(sim_params)
+sim_params = Walk1DParams()
+sim_params.startx = 1.0
+sim_params.threshx = 10.0
+sim_params.sigma = 1.0
+sim_params.endtime = MAXTIME
+sim_params.logging = true
 
-ast_params = ASTParams(ENDTIME, RNG_LENGTH, 0, nothing)
+sim = Walk1DSim(sim_params)
+ast_params = ASTParams(MAXTIME, RNG_LENGTH, 0, nothing)
 ast = AdaptiveStressTest(ast_params, sim)
-sample(ast, 5)
+
+sample(ast)
 
 mcts_params = DPWParams()
 mcts_params.d = 50
@@ -57,4 +63,4 @@ mcts_params.alphap = 0.0
 mcts_params.clear_nodes = true
 mcts_params.maxtime_s = realmax(Float64)
 mcts_params.rng_seed = uint64(0)
-stress_test(ast, mcts_params)
+reward, action_seq = stress_test(ast, mcts_params)

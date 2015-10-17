@@ -49,7 +49,7 @@ using MDP
 using RNGWrapper
 import Base: hash, isequal, ==
 
-export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model,
+export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward,
         random_action, get_action_sequence, reset_rsg
 
 const DEFAULT_RSGLENGTH = 3
@@ -70,7 +70,6 @@ type AdaptiveStressTest
   initialize::Function #initialize(sim)
   step::Function #step(sim)
   isterminal::Function #isterminal(sim)
-  get_reward::Function #get_reward(sim)
 
   t_index::Int64 #starts at 1 and counts up in ints
   rsg::RSG #random seed generator
@@ -81,11 +80,11 @@ type AdaptiveStressTest
 
   #shorthand assumes standard names from main
   function AdaptiveStressTest(p::ASTParams, sim)
-    AdaptiveStressTest(p, sim, Main.initialize, Main.step, Main.isterminal, Main.get_reward)
+    AdaptiveStressTest(p, sim, Main.initialize, Main.step, Main.isterminal)
   end
 
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function, step_fn::Function,
-                   isterminal_fn::Function, get_reward_fn::Function)
+                              isterminal_fn::Function)
     ast = new()
     ast.params = p
     ast.sim = sim
@@ -93,7 +92,6 @@ type AdaptiveStressTest
     ast.initialize = initialize_fn
     ast.step = step_fn
     ast.isterminal = isterminal_fn
-    ast.get_reward = get_reward_fn
     ast.rsg = RSG(p.rsg_length, p.init_seed)
     ast.initial_rsg = deepcopy(ast.rsg)
     ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
@@ -141,10 +139,10 @@ function transition_model(ast::AdaptiveStressTest)
     # and the rest be generated using hash() would need to reach deep into components to use
     # an RNG that is passed around.  TODO: consider doing this
 
-    ast.step(ast.sim)
+    prob, event, dist = ast.step(ast.sim)
     s1 = ASTState(ast.t_index, s0, a0)
     ast.sim_hash = s1.hash
-    r = ast.get_reward(ast.sim)
+    r = get_reward(prob, event, ast.isterminal(ast.sim), dist)
     return (s1, r)
   end
 
@@ -166,6 +164,16 @@ function transition_model(ast::AdaptiveStressTest)
 
   return TransitionModel(get_initial_state, get_next_state, isterminal, ast.params.max_steps,
                          go_to_state)
+end
+
+function get_reward(prob::Float64, event::Bool, terminal::Bool, dist::Float64)
+  r = log(prob)
+  if event
+    r += 0.0
+  elseif terminal
+    r += -dist
+  end
+  return r
 end
 
 function reset_rsg!(ast::AdaptiveStressTest)

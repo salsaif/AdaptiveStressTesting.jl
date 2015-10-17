@@ -32,29 +32,63 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("ASTTest.jl")
-using ASTTest
-using AdaptiveStressTesting
+module Walk1D
 
-const ENDTIME = 10 #sim endtime
-const RNG_LENGTH = 2
+using Distributions
 
-sim_params = TestSimParams(ENDTIME)
-sim = TestSim(sim_params)
+export Walk1DParams, Walk1DSim, initialize, step, isterminal, isevent
 
-ast_params = ASTParams(ENDTIME, RNG_LENGTH, 0, nothing)
-ast = AdaptiveStressTest(ast_params, sim)
-sample(ast, 5)
+type Walk1DParams
+  startx::Float64
+  threshx::Float64 #+- thresh
+  sigma::Float64 #standard deviation
+  endtime::Int64
+  logging::Bool
+end
+Walk1DParams() = Walk1DParams(1.0, 5.0, 1.0, 10, false)
 
-mcts_params = DPWParams()
-mcts_params.d = 50
-mcts_params.ec = 100
-mcts_params.n = 10
-mcts_params.k = 0.5
-mcts_params.alpha = 0.85
-mcts_params.kp = 1.0
-mcts_params.alphap = 0.0
-mcts_params.clear_nodes = true
-mcts_params.maxtime_s = realmax(Float64)
-mcts_params.rng_seed = uint64(0)
-stress_test(ast, mcts_params)
+type Walk1DSim
+  p::Walk1DParams #parameters
+  x::Float64
+  t::Int64 #num steps
+  distribution::Distribution
+  log::Vector{Float64}
+end
+
+function Walk1DSim(params::Walk1DParams)
+  Walk1DSim(params, Normal(0.0, params.sigma))
+end
+function Walk1DSim(params::Walk1DParams, distribution::Distribution)
+  Walk1DSim(params, params.startx, 0, distribution, Array(Float64,0))
+end
+
+function initialize(sim::Walk1DSim)
+  sim.t = 0
+  sim.x = sim.p.startx
+  empty!(sim.log)
+  if sim.p.logging
+    push!(sim.log, sim.x)
+  end
+end
+
+function step(sim::Walk1DSim)
+  sim.t += 1
+  r = rand(sim.distribution)
+  sim.x += r
+  prob = pdf(sim.distribution, r)
+  dist = max(sim.p.threshx - abs(sim.x), 0.0) #non-negative
+  if sim.p.logging
+    push!(sim.log, sim.x)
+  end
+  return (prob, isevent(sim), dist)
+end
+
+function isevent(sim::Walk1DSim)
+  abs(sim.x) >= sim.p.threshx #out-of-bounds in +-
+end
+
+function isterminal(sim::Walk1DSim)
+  isevent(sim) || sim.t >= sim.p.endtime
+end
+
+end #module
