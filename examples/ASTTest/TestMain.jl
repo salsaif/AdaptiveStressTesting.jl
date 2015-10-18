@@ -44,17 +44,4 @@ sim = TestSim(sim_params)
 
 ast_params = ASTParams(ENDTIME, RNG_LENGTH, 0, nothing)
 ast = AdaptiveStressTest(ast_params, sim)
-sample(ast, 5)
-
-mcts_params = DPWParams()
-mcts_params.d = 50
-mcts_params.ec = 100
-mcts_params.n = 10
-mcts_params.k = 0.5
-mcts_params.alpha = 0.85
-mcts_params.kp = 1.0
-mcts_params.alphap = 0.0
-mcts_params.clear_nodes = true
-mcts_params.maxtime_s = realmax(Float64)
-mcts_params.rng_seed = uint64(0)
-stress_test(ast, mcts_params)
+sample(ast, 3)
