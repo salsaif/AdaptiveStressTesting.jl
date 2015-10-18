@@ -38,15 +38,15 @@ using AdaptiveStressTesting
 
 const MAXTIME = 20 #sim endtime
 const RNG_LENGTH = 2
+const SIGMA = 1.0 #standard deviation of Gaussian
 
 sim_params = Walk1DParams()
 sim_params.startx = 1.0
 sim_params.threshx = 10.0
-sim_params.sigma = 1.0
 sim_params.endtime = MAXTIME
 sim_params.logging = true
 
-sim = Walk1DSim(sim_params)
+sim = Walk1DSim(sim_params, SIGMA)
 ast_params = ASTParams(MAXTIME, RNG_LENGTH, 0, nothing)
 ast = AdaptiveStressTest(ast_params, sim)
 

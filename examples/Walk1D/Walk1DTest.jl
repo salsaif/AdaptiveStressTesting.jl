@@ -41,11 +41,10 @@ export Walk1DParams, Walk1DSim, initialize, step, isterminal, isevent
 type Walk1DParams
   startx::Float64
   threshx::Float64 #+- thresh
-  sigma::Float64 #standard deviation
   endtime::Int64
   logging::Bool
 end
-Walk1DParams() = Walk1DParams(1.0, 5.0, 1.0, 10, false)
+Walk1DParams() = Walk1DParams(1.0, 10.0, 20, false)
 
 type Walk1DSim
   p::Walk1DParams #parameters
@@ -55,9 +54,12 @@ type Walk1DSim
   log::Vector{Float64}
 end
 
-function Walk1DSim(params::Walk1DParams)
-  Walk1DSim(params, Normal(0.0, params.sigma))
+#Default to zero-mean Gaussian
+function Walk1DSim(params::Walk1DParams, sigma::Float64)
+  Walk1DSim(params, Normal(0.0, sigma))
 end
+
+#Option to set own distribution
 function Walk1DSim(params::Walk1DParams, distribution::Distribution)
   Walk1DSim(params, params.startx, 0, distribution, Array(Float64,0))
 end
