@@ -65,7 +65,7 @@ ASTParams() = ASTParams(0, DEFAULT_RSGLENGTH, 0, nothing)
 type AdaptiveStressTest
   params::ASTParams
   sim
-  sim_hash::Uint64
+  sim_hash::Uint64 #keeps the sim in sync
 
   initialize::Function #initialize(sim)
   step::Function #step(sim)
@@ -83,8 +83,8 @@ type AdaptiveStressTest
     AdaptiveStressTest(p, sim, Main.initialize, Main.step, Main.isterminal)
   end
 
-  function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function, step_fn::Function,
-                              isterminal_fn::Function)
+  function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
+                              step_fn::Function, isterminal_fn::Function)
     ast = new()
     ast.params = p
     ast.sim = sim
@@ -170,7 +170,7 @@ function get_reward(prob::Float64, event::Bool, terminal::Bool, dist::Float64)
   r = log(prob)
   if event
     r += 0.0
-  elseif terminal
+  elseif terminal #incur distance cost only if !event && terminal
     r += -dist
   end
   return r
