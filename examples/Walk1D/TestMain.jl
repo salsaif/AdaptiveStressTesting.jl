@@ -48,7 +48,7 @@ sim_params.logging = true
 
 sim = Walk1DSim(sim_params, SIGMA)
 ast_params = ASTParams(MAXTIME, RNG_LENGTH, 0, nothing)
-ast = AdaptiveStressTest(ast_params, sim)
+ast = AdaptiveStressTest(ast_params, sim, initialize, step, isterminal)
 
 sample(ast)
 

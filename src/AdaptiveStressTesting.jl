@@ -78,11 +78,6 @@ type AdaptiveStressTest
 
   transition_model::TransitionModel
 
-  #shorthand assumes standard names from main
-  function AdaptiveStressTest(p::ASTParams, sim)
-    AdaptiveStressTest(p, sim, Main.initialize, Main.step, Main.isterminal)
-  end
-
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
                               step_fn::Function, isterminal_fn::Function)
     ast = new()

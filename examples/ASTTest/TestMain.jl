@@ -43,5 +43,5 @@ sim_params = TestSimParams(ENDTIME)
 sim = TestSim(sim_params)
 
 ast_params = ASTParams(ENDTIME, RNG_LENGTH, 0, nothing)
-ast = AdaptiveStressTest(ast_params, sim)
+ast = AdaptiveStressTest(ast_params, sim, initialize, step, isterminal)
 sample(ast, 3)
