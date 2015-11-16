@@ -66,7 +66,7 @@ function sample(ast::AdaptiveStressTest, nsamples::Int64; verbose::Bool=true)
   [sample(ast, verbose=verbose) for i = 1:nsamples] #returns vector of tuples(reward, actions)
 end
 
-function samples_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
+function sample_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
   #Samples are varied since ast.rsg is not reset and sampling is done in series
   starttime_us = CPUtime_us()
   results = Array((Float64, Vector{Action}), 0)
