@@ -38,15 +38,14 @@
 #
 #Author: Ritchie Lee
 
-#for now... need to move this out of global
+#for now... move this to submodule
 include("MDP.jl")
 include("MCTSdpw.jl")
-include("RNGWrapper.jl")
 
 module AdaptiveStressTesting
 
 using MDP
-using RNGWrapper
+using RLESUtils.RNGWrapper
 import Base: hash, isequal, ==
 
 export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward,
