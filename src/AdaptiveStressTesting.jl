@@ -57,14 +57,14 @@ type ASTParams
   max_steps::Int64 # safety for runaways in sim
   rsg_length::Int64 # dictates number of unique available random seeds
   init_seed::Int64 # initial value of seed on construct
-  reset_seed::Union(Nothing, Int64) #reset to this seed value on initialize()
+  reset_seed::Union{Void,Int64} #reset to this seed value on initialize()
 end
 ASTParams() = ASTParams(0, DEFAULT_RSGLENGTH, 0, nothing)
 
 type AdaptiveStressTest
   params::ASTParams
   sim
-  sim_hash::Uint64 #keeps the sim in sync
+  sim_hash::UInt64 #keeps the sim in sync
 
   initialize::Function #initialize(sim)
   step::Function #step(sim)
@@ -73,7 +73,7 @@ type AdaptiveStressTest
   t_index::Int64 #starts at 1 and counts up in ints
   rsg::RSG #random seed generator
   initial_rsg::RSG #initial
-  reset_rsg::Union(Nothing, RSG) #reset to this RSG
+  reset_rsg::Union{Void,RSG} #reset to this RSG
 
   transition_model::TransitionModel
 
@@ -101,12 +101,12 @@ ASTAction(len::Int64=DEFAULT_RSGLENGTH, seed::Int64=0) = ASTAction(RSG(len, seed
 
 type ASTState <: State
   t_index::Int64 #sanity check that at least the time corresponds
-  hash::Uint64 #hash sim state to match with ASTState
-  parent::Union(Nothing, ASTState) #parent state, root=nothing
+  hash::UInt64 #hash sim state to match with ASTState
+  parent::Union{Void,ASTState} #parent state, root=nothing
   action::ASTAction #action taken from parent, root=0
 end
 
-function ASTState(t_index::Int64, parent::Union(Nothing, ASTState), action::ASTAction)
+function ASTState(t_index::Int64, parent::Union{Void,ASTState}, action::ASTAction)
   s = ASTState(t_index, 0, parent, action)
   s.hash = hash(s) #overwrites 0
   return s
