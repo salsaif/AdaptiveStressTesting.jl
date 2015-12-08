@@ -119,7 +119,7 @@ function transition_model(ast::AdaptiveStressTest)
     if ast.reset_rsg != nothing #reset if specified
       ast.rsg = deepcopy(ast.reset_rsg)
     end
-    s = ASTState(ast.t_index, nothing, ASTAction())
+    s = ASTState(ast.t_index, nothing, ASTAction(deepcopy(ast.initial_rsg)))
     ast.sim_hash = s.hash
     return s
   end
