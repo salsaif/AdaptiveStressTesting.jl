@@ -48,7 +48,7 @@ using MDP
 using RLESUtils.RNGWrapper
 import Base: hash, isequal, ==
 
-export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward,
+export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward_default,
         random_action, get_action_sequence, reset_rsg
 
 const DEFAULT_RSGLENGTH = 3
@@ -69,6 +69,7 @@ type AdaptiveStressTest
   initialize::Function #initialize(sim)
   step::Function #step(sim)
   isterminal::Function #isterminal(sim)
+  get_reward::Function #get_reward(prob, event, isterminal, dist, ast)
 
   t_index::Int64 #starts at 1 and counts up in ints
   rsg::RSG #random seed generator
@@ -78,7 +79,8 @@ type AdaptiveStressTest
   transition_model::TransitionModel
 
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
-                              step_fn::Function, isterminal_fn::Function)
+                              step_fn::Function, isterminal_fn::Function,
+                              reward_fn::Function=get_reward_default)
     ast = new()
     ast.params = p
     ast.sim = sim
@@ -86,6 +88,7 @@ type AdaptiveStressTest
     ast.initialize = initialize_fn
     ast.step = step_fn
     ast.isterminal = isterminal_fn
+    ast.get_reward = reward_fn
     ast.rsg = RSG(p.rsg_length, p.init_seed)
     ast.initial_rsg = deepcopy(ast.rsg)
     ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
@@ -136,7 +139,7 @@ function transition_model(ast::AdaptiveStressTest)
     prob, event, dist = ast.step(ast.sim)
     s1 = ASTState(ast.t_index, s0, a0)
     ast.sim_hash = s1.hash
-    r = get_reward(prob, event, ast.isterminal(ast.sim), dist)
+    r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast)
     return (s1, r)
   end
 
@@ -160,7 +163,8 @@ function transition_model(ast::AdaptiveStressTest)
                          go_to_state)
 end
 
-function get_reward(prob::Float64, event::Bool, terminal::Bool, dist::Float64)
+function get_reward_default(prob::Float64, event::Bool, terminal::Bool, dist::Float64,
+                            ast::AdaptiveStressTest) #ast not used in default
   r = log(prob)
   if event
     r += 0.0
