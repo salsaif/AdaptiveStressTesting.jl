@@ -27,11 +27,11 @@ type DPWParams
   alphap::Float64             # second constant controlling transition state generation
   clear_nodes::Bool           # clear all nodes before selecting next action
   maxtime_s::Float64          # maximum time to iterate, seconds
-  rng_seed::Uint64            # random number generator
+  rng_seed::UInt64            # random number generator
 
   DPWParams() = new()
   DPWParams(d::Depth,ec::Float64,n::Int64,k::Float64,alpha::Float64,kp::Float64,alphap::Float64,
-            clear_nodes::Bool,maxtime_s::Float64,rng_seed::Uint64) = new(d,ec,n,k,alpha,kp,alphap,
+            clear_nodes::Bool,maxtime_s::Float64,rng_seed::UInt64) = new(d,ec,n,k,alpha,kp,alphap,
                                                                          clear_nodes,maxtime_s,rng_seed)
 end
 
@@ -42,7 +42,7 @@ type DPWModel
 end
 
 type StateActionStateNode
-  n::Uint64
+  n::UInt64
   r::Float64
 
   StateActionStateNode() = new(0,0)
@@ -50,14 +50,14 @@ end
 
 type StateActionNode
   s::Dict{State,StateActionStateNode}
-  n::Uint64
+  n::UInt64
   q::Float64
 end
 StateActionNode() = StateActionNode(Dict{State, StateActionStateNode}(), 0, 0)
 
 type StateNode
   a::Dict{Action,StateActionNode}
-  n::Uint64
+  n::UInt64
 end
 StateNode() = StateNode(Dict{Action, StateActionNode}(), 0)
 
@@ -131,7 +131,7 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
     dpw.s[s] = StateNode()
     return rollout(dpw,s,d)::Reward
   end
-  dpw.s[s].n += one(Uint64)
+  dpw.s[s].n += one(UInt64)
   if length(dpw.s[s].a) <= dpw.p.k*dpw.s[s].n^dpw.p.alpha # criterion for new action generation
     a = dpw.f.getNextAction(s,dpw.rng) # action generation step
     if !haskey(dpw.s[s].a,a) # make sure we haven't already tried this action
@@ -157,7 +157,7 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
       dpw.s[s].a[a].s[sp] = StateActionStateNode()
       dpw.s[s].a[a].s[sp].r = r
     else
-      dpw.s[s].a[a].s[sp].n += one(Uint64)
+      dpw.s[s].a[a].s[sp].n += one(UInt64)
     end
   else # sample from transition states proportional to their occurence in the past
     cA = dpw.s[s].a[a]
@@ -174,11 +174,11 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
       i += 1
     end
     r = dpw.s[s].a[a].s[sp].r
-    dpw.s[s].a[a].s[sp].n += one(Uint64)
+    dpw.s[s].a[a].s[sp].n += one(UInt64)
   end
   q = r + simulate(dpw,sp,d-1)
   cA = dpw.s[s].a[a]
-  cA.n += one(Uint64)
+  cA.n += one(UInt64)
   cA.q += (q-cA.q)/cA.n
   dpw.s[s].a[a] = cA
   return q::Reward

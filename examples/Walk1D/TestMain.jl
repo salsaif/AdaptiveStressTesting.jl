@@ -62,5 +62,5 @@ mcts_params.kp = 1.0
 mcts_params.alphap = 0.0
 mcts_params.clear_nodes = true
 mcts_params.maxtime_s = realmax(Float64)
-mcts_params.rng_seed = uint64(0)
+mcts_params.rng_seed = UInt64(0)
 reward, action_seq = stress_test(ast, mcts_params)
