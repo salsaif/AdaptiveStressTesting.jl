@@ -45,7 +45,7 @@ include("MCTSdpw.jl")
 module AdaptiveStressTesting
 
 using MDP
-using RLESUtils.RNGWrapper
+using RLESUtils, RNGWrapper
 import Base: hash, isequal, ==
 
 export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward,
