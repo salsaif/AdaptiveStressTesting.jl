@@ -55,7 +55,7 @@ sample(ast)
 mcts_params = DPWParams()
 mcts_params.d = 50
 mcts_params.ec = 100
-mcts_params.n = 10
+mcts_params.n = 100
 mcts_params.k = 0.5
 mcts_params.alpha = 0.85
 mcts_params.kp = 1.0

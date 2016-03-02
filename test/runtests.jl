@@ -32,4 +32,21 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-#TODO: Turn some examples into tests
+using AdaptiveStressTesting
+using Base.Test
+
+const N_SAMPLES = 10
+const EXAMPLESDIR = joinpath(dirname(@__FILE__), "..", "examples")
+
+include(joinpath(EXAMPLESDIR, "Walk1D", "TestMain.jl"))
+
+mc_samples = sample(ast, N_SAMPLES)
+
+#MC should always end on MAXTIME
+@test all(map(i -> length(mc_samples[i][2]) == MAXTIME, 1:N_SAMPLES))
+
+#AST should always end by pushing over threshold
+for i = 1:N_SAMPLES
+  reward, action_seq = stress_test(ast, mcts_params)
+  @test length(action_seq) < MAXTIME
+end
