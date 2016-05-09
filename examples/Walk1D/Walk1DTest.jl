@@ -36,7 +36,7 @@ module Walk1D
 
 using Distributions
 
-export Walk1DParams, Walk1DSim, initialize, step, isterminal, isevent
+export Walk1DParams, Walk1DSim, initialize, update, isterminal, isevent
 
 type Walk1DParams
   startx::Float64
@@ -73,7 +73,7 @@ function initialize(sim::Walk1DSim)
   end
 end
 
-function step(sim::Walk1DSim)
+function update(sim::Walk1DSim)
   sim.t += 1
   r = rand(sim.distribution)
   sim.x += r

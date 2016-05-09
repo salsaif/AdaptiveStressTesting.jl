@@ -34,7 +34,7 @@
 
 module ASTTest
 
-export TestSimParams, TestSim, initialize, step, isterminal
+export TestSimParams, TestSim, initialize, update, isterminal
 
 type TestSimParams
   endtime::Int64
@@ -51,7 +51,7 @@ function initialize(sim::TestSim)
   @show sim.t = 0
 end
 
-function step(sim::TestSim)
+function update(sim::TestSim)
   @show sim.t += 1
   return (0.0, isevent(sim), Inf)
 end

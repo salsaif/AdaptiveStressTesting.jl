@@ -49,9 +49,10 @@ using RLESUtils, RNGWrapper
 import Base: hash, isequal, ==
 
 export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward_default,
-        random_action, get_action_sequence, reset_rsg
+        random_action, get_action_sequence, reset_rsg!
 
 const DEFAULT_RSGLENGTH = 3
+const G_RNG = MersenneTwister() #not used
 
 type ASTParams
   max_steps::Int64 # safety for runaways in sim
@@ -67,7 +68,7 @@ type AdaptiveStressTest
   sim_hash::UInt64 #keeps the sim in sync
 
   initialize::Function #initialize(sim)
-  step::Function #step(sim)
+  update::Function #update(sim)
   isterminal::Function #isterminal(sim)
   get_reward::Function #get_reward(prob, event, isterminal, dist, ast)
 
@@ -79,14 +80,14 @@ type AdaptiveStressTest
   transition_model::TransitionModel
 
   function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
-                              step_fn::Function, isterminal_fn::Function,
+                              update_fn::Function, isterminal_fn::Function,
                               reward_fn::Function=get_reward_default)
     ast = new()
     ast.params = p
     ast.sim = sim
     ast.sim_hash = hash(0)
     ast.initialize = initialize_fn
-    ast.step = step_fn
+    ast.update = update_fn
     ast.isterminal = isterminal_fn
     ast.get_reward = reward_fn
     ast.rsg = RSG(p.rsg_length, p.init_seed)
@@ -136,7 +137,7 @@ function transition_model(ast::AdaptiveStressTest)
     # and the rest be generated using hash() would need to reach deep into components to use
     # an RNG that is passed around.  TODO: consider doing this
 
-    prob, event, dist = ast.step(ast.sim)
+    prob, event, dist = ast.update(ast.sim)
     s1 = ASTState(ast.t_index, s0, a0)
     ast.sim_hash = s1.hash
     r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast)
@@ -149,11 +150,10 @@ function transition_model(ast::AdaptiveStressTest)
   end
 
   function go_to_state(target_state::ASTState)
-    rng = MersenneTwister() #not used. #TODO: remove this
     #Get to state s by traversing starting from initial state
-    s = get_initial_state(rng)
+    s = get_initial_state(G_RNG)
     for a = get_action_sequence(target_state)
-      s, r = get_next_state(s, a, rng)
+      s, r = get_next_state(s, a, G_RNG)
     end
     @assert s == target_state
     return target_state
