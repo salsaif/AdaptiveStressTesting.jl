@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-using CPUTime
+using RLESUtils, CPUTimeUtils
 using MDP
 
 type ActionSequence{A <: Action}
@@ -68,12 +68,12 @@ end
 
 function sample_timed(ast::AdaptiveStressTest, maxtime_s::Float64; verbose::Bool=true)
   #Samples are varied since ast.rsg is not reset and sampling is done in series
-  starttime_us = CPUtime_us()
+  tstart = CPUtime_start()
   results = Array((Float64, Vector{Action}), 0)
   while true #do while structure guarantees at least 1 sample
     tup = sample(ast, verbose=verbose)
     push!(results, tup)
-    if CPUtime_us() - starttime_us > maxtime_s * 1e6
+    if CPUtime_elapsed_s(tstart) > maxtime_s
       break
     end
   end
