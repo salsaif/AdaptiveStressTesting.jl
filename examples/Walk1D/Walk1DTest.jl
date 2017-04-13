@@ -32,6 +32,13 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
+"""
+A 1D random walk that selects the next position according to a normal
+distribution from the current position.  Under MC sampling, 
+the walker has very low probability of exceeding the bounds within the given
+time steps.  But under stress test, the bounds are exceeded in a small
+number of steps.
+"""
 module Walk1D
 
 using Distributions
