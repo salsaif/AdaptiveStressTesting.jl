@@ -83,7 +83,8 @@ function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::
   end
 end
 
-function selectAction(dpw::DPW,s::State; verbose::Bool=false)
+function selectAction(dpw::DPW,s::State; q_listener::Function=identity,
+    verbose::Bool=false)
   if dpw.p.clear_nodes
     #save s and its successors
     new_dict = saveState(dpw.s,Dict{State,StateNode}(),s)
@@ -115,11 +116,11 @@ function selectAction(dpw::DPW,s::State; verbose::Bool=false)
     Q[i] = cS.a[A[i]].q
   end
 
-  if !isempty(Q)
-    return A[indmax(Q)]::Action # choose action with highest approximate value
-  else
-    return error("This shouldn't be occurring...")
-  end
+  isempty(Q) && error("Something went wrong...")
+    
+  qmax, i = findmax(Q)
+  q_listener(qmax)
+  return A[i]::Action # choose action with highest approximate value
 end
 
 function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)

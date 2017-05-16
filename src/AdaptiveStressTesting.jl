@@ -210,6 +210,6 @@ include("ASTSim.jl")
 export sample, sample_timed, play_sequence, uniform_policy
 
 include("AST_MCTS.jl") #mcts dpw
-export uniform_getAction, DPWParams, stress_test
+export uniform_getAction, DPWParams, stress_test, StessTestResults
 
 end #module
