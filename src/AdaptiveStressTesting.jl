@@ -55,150 +55,150 @@ const DEFAULT_RSGLENGTH = 3
 const G_RNG = MersenneTwister() #not used
 
 type ASTParams
-  max_steps::Int64 # safety for runaways in sim
-  rsg_length::Int64 # dictates number of unique available random seeds
-  init_seed::Int64 # initial value of seed on construct
-  reset_seed::Union{Void,Int64} #reset to this seed value on initialize()
+    max_steps::Int64 # safety for runaways in sim
+    rsg_length::Int64 # dictates number of unique available random seeds
+    init_seed::Int64 # initial value of seed on construct
+    reset_seed::Union{Void,Int64} #reset to this seed value on initialize()
 end
 ASTParams() = ASTParams(0, DEFAULT_RSGLENGTH, 0, nothing)
 
 type AdaptiveStressTest
-  params::ASTParams
-  sim
-  sim_hash::UInt64 #keeps the sim in sync
+    params::ASTParams
+    sim
+    sim_hash::UInt64 #keeps the sim in sync
 
-  initialize::Function #initialize(sim)
-  update::Function #update(sim)
-  isterminal::Function #isterminal(sim)
-  get_reward::Function #get_reward(prob, event, isterminal, dist, ast)
+    initialize::Function #initialize(sim)
+    update::Function #update(sim)
+    isterminal::Function #isterminal(sim)
+    get_reward::Function #get_reward(prob, event, isterminal, dist, ast)
 
-  t_index::Int64 #starts at 1 and counts up in ints
-  rsg::RSG #random seed generator
-  initial_rsg::RSG #initial
-  reset_rsg::Union{Void,RSG} #reset to this RSG
+    t_index::Int64 #starts at 1 and counts up in ints
+    rsg::RSG #random seed generator
+    initial_rsg::RSG #initial
+    reset_rsg::Union{Void,RSG} #reset to this RSG
 
-  transition_model::TransitionModel
+    transition_model::TransitionModel
 
-  function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
+    function AdaptiveStressTest(p::ASTParams, sim, initialize_fn::Function,
                               update_fn::Function, isterminal_fn::Function,
                               reward_fn::Function=get_reward_default)
-    ast = new()
-    ast.params = p
-    ast.sim = sim
-    ast.sim_hash = hash(0)
-    ast.initialize = initialize_fn
-    ast.update = update_fn
-    ast.isterminal = isterminal_fn
-    ast.get_reward = reward_fn
-    ast.rsg = RSG(p.rsg_length, p.init_seed)
-    ast.initial_rsg = deepcopy(ast.rsg)
-    ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
-    ast.transition_model = transition_model(ast)
-    return ast
-  end
+        ast = new()
+        ast.params = p
+        ast.sim = sim
+        ast.sim_hash = hash(0)
+        ast.initialize = initialize_fn
+        ast.update = update_fn
+        ast.isterminal = isterminal_fn
+        ast.get_reward = reward_fn
+        ast.rsg = RSG(p.rsg_length, p.init_seed)
+        ast.initial_rsg = deepcopy(ast.rsg)
+        ast.reset_rsg = p.reset_seed != nothing ? RSG(p.rsg_length, p.reset_seed) : nothing
+        ast.transition_model = transition_model(ast)
+        ast
+    end
 end
 
 type ASTAction <: Action
-  rsg::RSG
+    rsg::RSG
 end
 ASTAction(len::Int64=DEFAULT_RSGLENGTH, seed::Int64=0) = ASTAction(RSG(len, seed))
 
 type ASTState <: State
-  t_index::Int64 #sanity check that at least the time corresponds
-  hash::UInt64 #hash sim state to match with ASTState
-  parent::Union{Void,ASTState} #parent state, root=nothing
-  action::ASTAction #action taken from parent, root=0
+    t_index::Int64 #sanity check that at least the time corresponds
+    hash::UInt64 #hash sim state to match with ASTState
+    parent::Union{Void,ASTState} #parent state, root=nothing
+    action::ASTAction #action taken from parent, root=0
 end
 
 function ASTState(t_index::Int64, parent::Union{Void,ASTState}, action::ASTAction)
-  s = ASTState(t_index, 0, parent, action)
-  s.hash = hash(s) #overwrites 0
-  return s
+    s = ASTState(t_index, 0, parent, action)
+    s.hash = hash(s) #overwrites 0
+    s
 end
 
 function transition_model(ast::AdaptiveStressTest)
-  function get_initial_state(rng::AbstractRNG) #rng is unused
-    ast.t_index = 1
-    ast.initialize(ast.sim)
-    if ast.reset_rsg != nothing #reset if specified
-      ast.rsg = deepcopy(ast.reset_rsg)
+    function get_initial_state(rng::AbstractRNG) #rng is unused
+        ast.t_index = 1
+        ast.initialize(ast.sim)
+        if ast.reset_rsg != nothing #reset if specified
+        ast.rsg = deepcopy(ast.reset_rsg)
+        end
+        s = ASTState(ast.t_index, nothing, ASTAction(deepcopy(ast.initial_rsg)))
+        ast.sim_hash = s.hash
+        s
     end
-    s = ASTState(ast.t_index, nothing, ASTAction(deepcopy(ast.initial_rsg)))
-    ast.sim_hash = s.hash
-    return s
-  end
 
-  function get_next_state(s0::ASTState, a0::ASTAction, rng::AbstractRNG) #rng is unused
-    @assert ast.sim_hash == s0.hash
-    ast.t_index += 1
-    set_global(a0.rsg)
-    #saving the entire state of the MersenneTwister would require 770 * 4 bytes.  Instead,
-    # for now, just save seed. alternatively, seed can be an array of ints less than size 770
-    # and the rest be generated using hash() would need to reach deep into components to use
-    # an RNG that is passed around.  TODO: consider doing this
+    function get_next_state(s0::ASTState, a0::ASTAction, rng::AbstractRNG) #rng is unused
+        @assert ast.sim_hash == s0.hash
+        ast.t_index += 1
+        set_global(a0.rsg)
+        #saving the entire state of the MersenneTwister would require 770 * 4 bytes.  Instead,
+        # for now, just save seed. alternatively, seed can be an array of ints less than size 770
+        # and the rest be generated using hash() would need to reach deep into components to use
+        # an RNG that is passed around.  TODO: consider doing this
 
-    prob, event, dist = ast.update(ast.sim)
-    s1 = ASTState(ast.t_index, s0, a0)
-    ast.sim_hash = s1.hash
-    r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast)
-    return (s1, r)
-  end
-
-  function isterminal(s::ASTState)
-    @assert ast.sim_hash == s.hash
-    return ast.isterminal(ast.sim)
-  end
-
-  function go_to_state(target_state::ASTState)
-    #Get to state s by traversing starting from initial state
-    s = get_initial_state(G_RNG)
-    for a = get_action_sequence(target_state)
-      s, r = get_next_state(s, a, G_RNG)
+        prob, event, dist = ast.update(ast.sim)
+        s1 = ASTState(ast.t_index, s0, a0)
+        ast.sim_hash = s1.hash
+        r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast)
+        (s1, r)
     end
-    @assert s == target_state
-    return target_state
-  end
 
-  return TransitionModel(get_initial_state, get_next_state, isterminal, ast.params.max_steps,
+    function isterminal(s::ASTState)
+        @assert ast.sim_hash == s.hash
+        ast.isterminal(ast.sim)
+    end
+
+    function go_to_state(target_state::ASTState)
+        #Get to state s by traversing starting from initial state
+        s = get_initial_state(G_RNG)
+        for a = get_action_sequence(target_state)
+            s, r = get_next_state(s, a, G_RNG)
+        end
+        @assert s == target_state
+        target_state
+    end
+
+    TransitionModel(get_initial_state, get_next_state, isterminal, ast.params.max_steps,
                          go_to_state)
 end
 
 function get_reward_default(prob::Float64, event::Bool, terminal::Bool, dist::Float64,
                             ast::AdaptiveStressTest) #ast not used in default
-  r = log(prob)
-  if event
-    r += 0.0
-  elseif terminal #incur distance cost only if !event && terminal
-    r += -dist
-  end
-  return r
+    r = log(prob)
+    if event
+        r += 0.0
+    elseif terminal #incur distance cost only if !event && terminal
+        r += -dist
+    end
+    r
 end
 
 function reset_rsg!(ast::AdaptiveStressTest)
-  ast.rsg = deepcopy(ast.initial_rsg)
+    ast.rsg = deepcopy(ast.initial_rsg)
 end
 
 function random_action(rsg::RSG)
-  next!(rsg)
-  return ASTAction(deepcopy(rsg))
+    next!(rsg)
+    ASTAction(deepcopy(rsg))
 end
 
 function get_action_sequence(s::ASTState)
-  actions = ASTAction[]
-  #Tracing up the tree relieves us from storing the entire history of actions at each node
-  while s.parent != nothing
-    push!(actions, s.action)
-    s = s.parent
-  end
-  return reverse!(actions)
+    actions = ASTAction[]
+    #Tracing up the tree relieves us from storing the entire history of actions at each node
+    while s.parent != nothing
+        push!(actions, s.action)
+        s = s.parent
+    end
+    reverse!(actions)
 end
 
 hash(a::ASTAction) = hash(a.rsg)
 function hash(s::ASTState)
-  h = hash(s.t_index)
-  h = hash(h, hash(s.parent == nothing ? nothing : s.parent.hash))
-  h = hash(h, hash(s.action))
-  return h
+    h = hash(s.t_index)
+    h = hash(h, hash(s.parent == nothing ? nothing : s.parent.hash))
+    h = hash(h, hash(s.action))
+    h
 end
 
 ==(w::ASTAction,v::ASTAction) = w.rsg == v.rsg
