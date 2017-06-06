@@ -32,7 +32,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("Walk1DTest.jl")
+include("Walk1D.jl")
 using Walk1D
 using AdaptiveStressTesting
 

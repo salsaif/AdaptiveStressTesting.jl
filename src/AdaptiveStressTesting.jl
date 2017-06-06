@@ -116,7 +116,9 @@ function ASTState(t_index::Int64, parent::Union{Void,ASTState}, action::ASTActio
     s
 end
 
-function transition_model(ast::AdaptiveStressTest)
+transition_model(ast::AdaptiveStressTest) = transition_model(ast, ast.sim)
+
+function transition_model(ast::AdaptiveStressTest, ::Any)
     function get_initial_state(rng::AbstractRNG) #rng is unused
         ast.t_index = 1
         ast.initialize(ast.sim)
@@ -211,5 +213,8 @@ export sample, sample_timed, play_sequence, uniform_policy
 
 include("AST_MCTS.jl") #mcts dpw
 export uniform_getAction, DPWParams, stress_test, StessTestResults
+
+include("dual_sim_mode.jl")
+export DualSim, get_dualsim_reward_default
 
 end #module
