@@ -50,9 +50,10 @@ get_dualsim_reward_default(r1::Float64, r2::Float64) =  r1 - r2
 function transition_model{T}(ast::AdaptiveStressTest, ::DualSim{T})
     function get_initial_state(rng::AbstractRNG) #rng is unused
         ast.t_index = 1
-        for sim in ast.sim
-            ast.initialize(sim)
-        end
+        ds = ast.sim
+        ast.initialize(ds.sim1)
+        ast.initialize(ds.sim2)
+
         if ast.reset_rsg != nothing #reset if specified
         ast.rsg = deepcopy(ast.reset_rsg)
         end
@@ -80,9 +81,9 @@ function transition_model{T}(ast::AdaptiveStressTest, ::DualSim{T})
         #sim2
         set_global(a0.rsg)
         prob, event, dist = ast.update(ds.sim2)
-        r1 = ast.get_reward(prob, event, ast.isterminal(ds.sim2), dist, ast)
+        r2 = ast.get_reward(prob, event, ast.isterminal(ds.sim2), dist, ast)
 
-        r = get_dualsim_reward(r1, r2)
+        r = ds.get_reward(r1, r2)
 
         s1 = ASTState(ast.t_index, s0, a0)
         ast.sim_hash = s1.hash
@@ -92,7 +93,7 @@ function transition_model{T}(ast::AdaptiveStressTest, ::DualSim{T})
     function isterminal(s::ASTState)
         @assert ast.sim_hash == s.hash
         ds = ast.sim
-        ast.isterminal(ds.sim1) && ast.isterminal(ds.sim2)
+        ast.isterminal(ds.sim1) || ast.isterminal(ds.sim2)
     end
 
     #unchanged from single

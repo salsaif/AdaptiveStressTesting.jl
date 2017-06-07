@@ -3,7 +3,7 @@
 # *****************************************************************************
 # Copyright ã 2015, United States Government, as represented by the
 # Administrator of the National Aeronautics and Space Administration. All
-# rights reserved.  The Reinforcement Learning Encounter Simulator (RLES)
+# rights reserved.  The Reinforcement Learning Encounter sim1ulator (RLES)
 # platform is licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License. You
 # may obtain a copy of the License at
@@ -13,7 +13,7 @@
 # KIND, either express or implied. See the License for the specific language
 # governing permissions and limitations under the License.
 # _____________________________________________________________________________
-# Reinforcement Learning Encounter Simulator (RLES) includes the following
+# Reinforcement Learning Encounter sim1ulator (RLES) includes the following
 # third party software. The SISLES.jl package is licensed under the MIT Expat
 # License: Copyright (c) 2014: Youngjun Kim.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -32,8 +32,8 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("Walk1D.jl")
-using Walk1D
+include("Walk1DDual.jl")
+using Walk1DDual
 using AdaptiveStressTesting
 
 const MAXTIME = 20 #sim endtime
@@ -41,22 +41,30 @@ const RNG_LENGTH = 2
 const SIGMA = 1.0 #standard deviation of Gaussian
 const SEED = 0 
 
-sim_params = Walk1DParams()
-sim_params.startx = 1.0
-sim_params.threshx = 10.0
-sim_params.endtime = MAXTIME
-sim_params.logging = true
+sim1_params = SafeWalkParams()
+sim1_params.startx = 1.0
+sim1_params.threshx = 10.0
+sim1_params.endtime = MAXTIME
+sim1_params.logging = true
+sim1_params.safe = (false, false) #one bound is safe
+sim1 = SafeWalkSim(1, sim1_params, SIGMA)
 
-sim = Walk1DSim(sim_params, SIGMA)
+sim2_params = deepcopy(sim1_params) 
+sim2_params.safe = (true, false) #both bounds safe
+sim2 = SafeWalkSim(2, sim2_params, SIGMA)
+
+sim = DualSim(sim1, sim2)
+
 ast_params = ASTParams(MAXTIME, RNG_LENGTH, SEED, nothing)
-ast = AdaptiveStressTest(ast_params, sim, Walk1D.initialize, Walk1D.update, Walk1D.isterminal)
+ast = AdaptiveStressTest(ast_params, sim, Walk1DDual.initialize, Walk1DDual.update, Walk1DDual.isterminal)
 
-sample(ast)
+#For testing only
+#sample(ast)
 
 mcts_params = DPWParams()
 mcts_params.d = 50
 mcts_params.ec = 100
-mcts_params.n = 100
+mcts_params.n = 200
 mcts_params.k = 0.5
 mcts_params.alpha = 0.85
 mcts_params.kp = 1.0
@@ -64,5 +72,6 @@ mcts_params.alphap = 0.0
 mcts_params.clear_nodes = true
 mcts_params.maxtime_s = realmax(Float64)
 mcts_params.rng_seed = UInt64(0)
+
 result = stress_test(ast, mcts_params)
 reward, action_seq = result.reward, result.action_seq
