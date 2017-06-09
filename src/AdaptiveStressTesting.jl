@@ -70,7 +70,7 @@ type AdaptiveStressTest
     initialize::Function #initialize(sim)
     update::Function #update(sim)
     isterminal::Function #isterminal(sim)
-    get_reward::Function #get_reward(prob, event, isterminal, dist, ast)
+    get_reward::Function #get_reward(prob, event, isterminal, dist, ast, sim)
 
     t_index::Int64 #starts at 1 and counts up in ints
     rsg::RSG #random seed generator
@@ -142,7 +142,7 @@ function transition_model(ast::AdaptiveStressTest, ::Any)
         prob, event, dist = ast.update(ast.sim)
         s1 = ASTState(ast.t_index, s0, a0)
         ast.sim_hash = s1.hash
-        r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast)
+        r = ast.get_reward(prob, event, ast.isterminal(ast.sim), dist, ast, ast.sim)
         (s1, r)
     end
 
@@ -166,7 +166,7 @@ function transition_model(ast::AdaptiveStressTest, ::Any)
 end
 
 function get_reward_default(prob::Float64, event::Bool, terminal::Bool, dist::Float64,
-                            ast::AdaptiveStressTest) #ast not used in default
+                            ast::AdaptiveStressTest, sim) #ast and sim not used in default
     r = log(prob)
     if event
         r += 0.0

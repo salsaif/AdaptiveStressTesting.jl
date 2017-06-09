@@ -76,12 +76,12 @@ function transition_model{T}(ast::AdaptiveStressTest, ::DualSim{T})
         #sim1
         set_global(a0.rsg)
         prob, event, dist = ast.update(ds.sim1)
-        r1 = ast.get_reward(prob, event, ast.isterminal(ds.sim1), dist, ast)
+        r1 = ast.get_reward(prob, event, ast.isterminal(ds.sim1), dist, ast, ds.sim1)
 
         #sim2
         set_global(a0.rsg)
         prob, event, dist = ast.update(ds.sim2)
-        r2 = ast.get_reward(prob, event, ast.isterminal(ds.sim2), dist, ast)
+        r2 = ast.get_reward(prob, event, ast.isterminal(ds.sim2), dist, ast, ds.sim2)
 
         r = ds.get_reward(r1, r2)
 
