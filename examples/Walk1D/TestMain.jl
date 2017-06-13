@@ -36,7 +36,7 @@ include("Walk1DTest.jl")
 using Walk1D
 using AdaptiveStressTesting
 
-const MAXTIME = 20 #sim endtime
+const MAXTIME = 25 #sim endtime
 const RNG_LENGTH = 2
 const SIGMA = 1.0 #standard deviation of Gaussian
 
