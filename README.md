@@ -7,9 +7,9 @@ Adaptive Stress Testing is a stress testing tool for finding failure occurrences
 ## Usage
 
 The recommended approach is for the user to define a custom type to contain the simulation state and parameters.  The adaptive stress testing tool then requires the user to expose three functions to the user simulator.
-* initialize(sim) - Resets the simulator to the initial state
-* update(sim) - Steps the simulator forward a single time step.  The tuple ``(prob, isevent, dist)`` is returned, where prob is the probability of taking that step, isevent indicates whether the failure event has occurred, and dist is an optional distance metric that hints to the optimizer how close the execution was to an event.
-* isterminal(sim) - Returns true if the simulation has ended, false otherwise. 
+* ``initialize(sim)`` - Resets the simulator to the initial state
+* ``update(sim)`` - Steps the simulator forward a single time step.  The tuple ``(prob, isevent, dist)`` is returned, where prob is the probability of taking that step, isevent indicates whether the failure event has occurred, and dist is an optional distance metric that hints to the optimizer how close the execution was to an event.
+* ``isterminal(sim)`` - Returns true if the simulation has ended, false otherwise. 
 
 These functions, along with configuration parameters, should be passed to create the adaptive stress test object 
 ```julia
