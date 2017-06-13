@@ -35,6 +35,11 @@
 using RLESUtils, CPUTimeUtils
 using MDP
 
+type SampleResults
+    reward::Float64
+    action_seq::Vector{ASTAction}
+end
+
 type ActionSequence{A <: Action}
     sequence::Vector{A}
     index::Int64
@@ -57,13 +62,13 @@ uniform_policy(rsg::RSG, s::ASTState) = random_action(rsg)
 function sample(ast::AdaptiveStressTest; verbose::Bool=true)
     reward, actions = simulate(ast.transition_model, ast.rsg, uniform_policy, verbose=verbose)
     actions = convert(Vector{ASTAction}, actions) #from Vector{Action}
-    (reward, actions)
+    SampleResults(reward, actions)
 end
 
 function sample(ast::AdaptiveStressTest, nsamples::Int64; print_rate::Int64=1)
     #Samples are varied since ast.rsg is not reset and sampling is done in series
     #Parallel version will need deterministic splitting of ast.rsg
-    results = Array(Any, nsamples)
+    results = Array(SampleResults, nsamples)
     for i = 1:nsamples
         if mod(i, print_rate) == 1
             println("sample ", i, " of ", nsamples)

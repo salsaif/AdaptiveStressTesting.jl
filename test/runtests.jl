@@ -35,7 +35,7 @@
 using AdaptiveStressTesting
 using Base.Test
 
-const N_SAMPLES = 10
+const N_SAMPLES = 5 
 const EXAMPLESDIR = joinpath(dirname(@__FILE__), "..", "examples")
 
 include(joinpath(EXAMPLESDIR, "Walk1D", "TestMain.jl"))
@@ -43,10 +43,10 @@ include(joinpath(EXAMPLESDIR, "Walk1D", "TestMain.jl"))
 mc_samples = sample(ast, N_SAMPLES)
 
 #MC should always end on MAXTIME
-@test all(map(i -> length(mc_samples[i][2]) == MAXTIME, 1:N_SAMPLES))
+@test all(length(mc_samples[i].action_seq)==MAXTIME for i=1:N_SAMPLES)
 
 #AST should always end by pushing over threshold
 for i = 1:N_SAMPLES
-  reward, action_seq = stress_test(ast, mcts_params)
-  @test length(action_seq) < MAXTIME
+  result = stress_test(ast, mcts_params)
+  @test length(result.action_seq) < MAXTIME
 end
