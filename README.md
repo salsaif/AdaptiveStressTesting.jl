@@ -43,3 +43,6 @@ For full working examples, see the package's ``examples`` folder.
 ## References
 
 [1] R. Lee, M. J. Kochenderfer, O. J. Mengshoel, G. P. Brat, and M. P. Owen, "Adaptive Stress Testing of Airborne Collision Avoidance Systems," in Digital Avionics Systems Conference (DASC), Prague, Czech Republic, 2015 
+
+[![Build Status](https://travis-ci.org/sisl/AdaptiveStressTesting.jl.svg?branch=master)](https://travis-ci.org/sisl/AdaptiveStressTesting.jl)
+[![Coverage Status](https://coveralls.io/repos/sisl/AdaptiveStressTesting.jl/badge.svg)](https://coveralls.io/r/sisl/AdaptiveStressTesting.jl)
