@@ -43,19 +43,20 @@ end
 uniform_getAction(ast::AdaptiveStressTest) = uniform_getAction(ast.rsg)
 
 function uniform_getAction(rsg::RSG)
-  policy(s::ASTState, rng::AbstractRNG) = random_action(rsg) #rng not used
-  return policy #function compatible with getAction() in MDP and MCTSdpw
+    policy(s::ASTState, rng::AbstractRNG) = random_action(rsg) #rng not used
+    policy #function compatible with getAction() in MDP and MCTSdpw
 end
 
 #Starts MCTS
 function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
-  dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), uniform_getAction(ast.rsg))
-  dpw = DPW(mcts_params, dpw_model)
-  qvalues = Float64[] 
-  (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, 
-    (x,y)->selectAction(x,y; q_listener=q->push!(qvalues, q)), verbose=verbose)
-  action_seq = convert(Vector{ASTAction}, action_seq) #from Vector{Action}
-  results = StressTestResults(mcts_reward, action_seq, qvalues)
-  results
+    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
+        uniform_getAction(ast.rsg))
+    dpw = DPW(mcts_params, dpw_model)
+    q_values = Float64[] 
+    (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, 
+        (x,y)->selectAction(x,y; q_listener=q->push!(q_values, q)), verbose=verbose)
+    action_seq = convert(Vector{ASTAction}, action_seq) #from Vector{Action}
+    results = StressTestResults(mcts_reward, action_seq, q_values)
+    results
 end
 

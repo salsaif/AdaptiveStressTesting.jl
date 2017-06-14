@@ -212,7 +212,7 @@ include("ASTSim.jl")
 export sample, sample_timed, play_sequence, uniform_policy
 
 include("AST_MCTS.jl") #mcts dpw
-export uniform_getAction, DPWParams, stress_test, StessTestResults
+export uniform_getAction, DPWParams, stress_test, StressTestResults
 
 include("dual_sim_mode.jl")
 export DualSim, get_dualsim_reward_default
