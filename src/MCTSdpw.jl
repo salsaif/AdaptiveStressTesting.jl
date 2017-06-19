@@ -9,11 +9,13 @@ module MCTSdpw
 #'A comparison of Monte Carlo tree search and mathematical optimization for large scale
 #dynamic resource allocation'
 
-using MDP
-import MDP: simulate
-using CPUTime
-
 export DPWParams, DPWModel, DPW, selectAction, Depth
+
+using MDP
+using CPUTime
+using RLESUtils, BoundedPriorityQueues
+
+import MDP: simulate
 
 typealias Depth Int64
 
@@ -30,11 +32,13 @@ type DPWParams
     maxtime_s::Float64          # maximum time to iterate, seconds
     rng_seed::UInt64            # random number generator
 
+    top_N::Int64                #track the top N executions
+
     DPWParams() = new()
     function DPWParams(d::Depth, ec::Float64, n::Int64, k::Float64, alpha::Float64, 
         kp::Float64,alphap::Float64, clear_nodes::Bool, maxtime_s::Float64, 
-        rng_seed::UInt64) 
-        new(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed)
+        rng_seed::UInt64, top_N::Int64=10) 
+        new(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed, top_N)
     end
 end
 
@@ -64,13 +68,29 @@ type StateNode
 end
 StateNode() = StateNode(Dict{Action, StateActionNode}(), 0)
 
-type DPW
+include("actionqvalues.jl")
+
+type DPW{A<:Action}
     s::Dict{State,StateNode}
     p::DPWParams
     f::DPWModel
     rng::AbstractRNG
+
+    tracker::ActionQValues{A}
+    top_paths::BoundedPriorityQueue{ActionQValues{A},Float64}
 end
-DPW(p::DPWParams, f::DPWModel) = DPW(Dict{State, StateNode}(), p, f, MersenneTwister(p.rng_seed))
+
+function DPW{A<:Action}(p::DPWParams, f::DPWModel, ::Type{A}) 
+    @show A
+    s = Dict{State,StateNode}()
+    rng = MersenneTwister(p.rng_seed)
+    tracker = ActionQValues()
+    top_paths = BoundedPriorityQueue{ActionQValues{A},Float64}(p.top_N, 
+        Base.Order.Forward) #keep highest
+    @show top_paths
+    @show methods(DPW)
+    dpw = DPW(s, p, f, rng, tracker, top_paths)
+end
 
 function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::State)
     if !haskey(old_d,s)
@@ -86,8 +106,7 @@ function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::
     end
 end
 
-function selectAction(dpw::DPW,s::State; q_listener::Function=identity,
-    verbose::Bool=false)
+function selectAction(dpw::DPW,s::State; verbose::Bool=false)
     if dpw.p.clear_nodes
         #save s and its successors
         new_dict = saveState(dpw.s,Dict{State,StateNode}(),s)
@@ -101,7 +120,10 @@ function selectAction(dpw::DPW,s::State; q_listener::Function=identity,
     starttime_us = CPUtime_us()
     for i = 1:dpw.p.n
         dpw.f.model.goToState(s)
-        simulate(dpw,s,d,verbose=verbose)
+        empty!(dpw.tracker)
+        q = simulate(dpw, s, d, verbose=verbose)
+        combine_q_values!(dpw.tracker)
+        enqueue!(dpw.top_paths, dpw.tracker, q; make_copy=true)
 
         if CPUtime_us() - starttime_us > dpw.p.maxtime_s * 1e6
             if verbose
@@ -120,10 +142,9 @@ function selectAction(dpw::DPW,s::State; q_listener::Function=identity,
         Q[i] = cS.a[A[i]].q
     end
 
-    isempty(Q) && error("Something went wrong...")
+    @assert !isempty(Q) #something went wrong... 
 
     qmax, i = findmax(Q)
-    q_listener(qmax)
     A[i]::Action # choose action with highest approximate value
 end
 
@@ -150,13 +171,18 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
         UCT = zeros(Reward,nA)
         nS = cS.n
         for i = 1:nA
-            cA = cS.a[A[i]] # save current action
+            cA = cS.a[A[i]] #current action
             @assert nS > 0
             @assert cA.n > 0
             UCT[i] = cA.q + dpw.p.ec*sqrt(log(nS)/cA.n)
         end
         a = A[indmax(UCT)] # choose action with highest UCT score
     end
+
+    push_action!(dpw.tracker, a) #track actions
+    qval = dpw.s[s].a[a].q
+    push_q_value!(dpw.tracker, qval) #track q_values
+
     if length(dpw.s[s].a[a].s) <= dpw.p.kp*dpw.s[s].a[a].n^dpw.p.alphap 
         #criterion for new transition state consideration
         sp,r = dpw.f.model.getNextState(s,a,dpw.rng) # choose a new state and get reward
@@ -198,8 +224,13 @@ function rollout(dpw::DPW,s::State,d::Depth)
         return 0.0::Reward
     else
         a = dpw.f.getAction(s,dpw.rng)
+
+        push_action!(dpw.tracker, a) #track actions
+
         sp,r = dpw.f.model.getNextState(s,a,dpw.rng)
-        return (r + rollout(dpw,sp,d-1))::Reward
+        qval = (r + rollout(dpw,sp,d-1))::Reward
+        push_q_value2!(dpw.tracker, qval) #track q_values, reverse order, so track them separate
+        qval
     end
 end
 
