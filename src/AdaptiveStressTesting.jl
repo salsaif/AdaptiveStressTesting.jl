@@ -44,12 +44,12 @@ include("MCTSdpw.jl")
 
 module AdaptiveStressTesting
 
+export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward_default,
+        random_action, get_action_sequence, reset_rsg!
+
 using MDP
 using RLESUtils, RNGWrapper
 import Base: hash, isequal, ==
-
-export AdaptiveStressTest, ASTParams, ASTState, ASTAction, transition_model, get_reward_default,
-        random_action, get_action_sequence, reset_rsg!
 
 const DEFAULT_RSGLENGTH = 3
 const G_RNG = MersenneTwister() #not used
@@ -154,11 +154,14 @@ function transition_model(ast::AdaptiveStressTest, ::Any)
     function go_to_state(target_state::ASTState)
         #Get to state s by traversing starting from initial state
         s = get_initial_state(G_RNG)
-        for a = get_action_sequence(target_state)
+        actions = get_action_sequence(target_state)
+        R = 0.0
+        for a in actions
             s, r = get_next_state(s, a, G_RNG)
+            R += r
         end
         @assert s == target_state
-        target_state
+        R, actions
     end
 
     TransitionModel(get_initial_state, get_next_state, isterminal, ast.params.max_steps,
@@ -196,6 +199,13 @@ function get_action_sequence(s::ASTState)
 end
 
 hash(a::ASTAction) = hash(a.rsg)
+function hash(A::Vector{ASTAction}) 
+    h = hash(A[1])
+    for i = 2:length(A)
+        h = hash(h, hash(A[i]))
+    end
+    h
+end
 function hash(s::ASTState)
     h = hash(s.t_index)
     h = hash(h, hash(s.parent == nothing ? nothing : s.parent.hash))
@@ -212,7 +222,7 @@ include("ASTSim.jl")
 export sample, sample_timed, play_sequence, uniform_policy
 
 include("AST_MCTS.jl") #mcts dpw
-export uniform_getAction, DPWParams, stress_test, StressTestResults
+export uniform_getAction, DPWParams, stress_test, stress_test2, StressTestResults
 
 include("dual_sim_mode.jl")
 export DualSim, get_dualsim_reward_default

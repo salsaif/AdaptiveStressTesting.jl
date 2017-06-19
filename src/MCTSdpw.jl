@@ -10,6 +10,7 @@ module MCTSdpw
 #dynamic resource allocation'
 
 export DPWParams, DPWModel, DPW, selectAction, Depth
+export MCTSTracker, get_actions, get_q_values
 
 using MDP
 using CPUTime
@@ -32,13 +33,13 @@ type DPWParams
     maxtime_s::Float64          # maximum time to iterate, seconds
     rng_seed::UInt64            # random number generator
 
-    top_N::Int64                #track the top N executions
+    top_k::Int64                #track the top k executions
 
     DPWParams() = new()
     function DPWParams(d::Depth, ec::Float64, n::Int64, k::Float64, alpha::Float64, 
         kp::Float64,alphap::Float64, clear_nodes::Bool, maxtime_s::Float64, 
-        rng_seed::UInt64, top_N::Int64=10) 
-        new(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed, top_N)
+        rng_seed::UInt64, top_k::Int64=10) 
+        new(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed, top_k)
     end
 end
 
@@ -68,7 +69,7 @@ type StateNode
 end
 StateNode() = StateNode(Dict{Action, StateActionNode}(), 0)
 
-include("actionqvalues.jl")
+include("mctstracker.jl")
 
 type DPW{A<:Action}
     s::Dict{State,StateNode}
@@ -76,19 +77,16 @@ type DPW{A<:Action}
     f::DPWModel
     rng::AbstractRNG
 
-    tracker::ActionQValues{A}
-    top_paths::BoundedPriorityQueue{ActionQValues{A},Float64}
+    tracker::MCTSTracker{A}
+    top_paths::BoundedPriorityQueue{MCTSTracker{A},Float64}
 end
 
 function DPW{A<:Action}(p::DPWParams, f::DPWModel, ::Type{A}) 
-    @show A
     s = Dict{State,StateNode}()
     rng = MersenneTwister(p.rng_seed)
-    tracker = ActionQValues()
-    top_paths = BoundedPriorityQueue{ActionQValues{A},Float64}(p.top_N, 
+    tracker = MCTSTracker{A}()
+    top_paths = BoundedPriorityQueue{MCTSTracker{A},Float64}(p.top_k, 
         Base.Order.Forward) #keep highest
-    @show top_paths
-    @show methods(DPW)
     dpw = DPW(s, p, f, rng, tracker, top_paths)
 end
 
@@ -106,7 +104,18 @@ function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::
     end
 end
 
-function selectAction(dpw::DPW,s::State; verbose::Bool=false)
+function trace_q_values{A<:Action}(dpw::DPW, actions::Vector{A})
+    q_values = zeros(length(actions))
+    s = dpw.f.model.getInitialState(dpw.rng)
+    for i = 1:length(actions)
+        a = actions[i]
+        q_values[i] = dpw.s[s].a[a].q
+        s, r = dpw.f.model.getNextState(s, a, dpw.rng)
+    end
+    q_values
+end
+
+function selectAction(dpw::DPW, s::State; verbose::Bool=false)
     if dpw.p.clear_nodes
         #save s and its successors
         new_dict = saveState(dpw.s,Dict{State,StateNode}(),s)
@@ -119,11 +128,13 @@ function selectAction(dpw::DPW,s::State; verbose::Bool=false)
     d = dpw.p.d
     starttime_us = CPUtime_us()
     for i = 1:dpw.p.n
-        dpw.f.model.goToState(s)
         empty!(dpw.tracker)
-        q = simulate(dpw, s, d, verbose=verbose)
+        R, actions = dpw.f.model.goToState(s)
+        #qvals = trace_q_values(dpw, actions)
+        append_actions!(dpw.tracker, actions)
+        R += simulate(dpw, s, d, verbose=verbose)
         combine_q_values!(dpw.tracker)
-        enqueue!(dpw.top_paths, dpw.tracker, q; make_copy=true)
+        enqueue!(dpw.top_paths, dpw.tracker, R; make_copy=true)
 
         if CPUtime_us() - starttime_us > dpw.p.maxtime_s * 1e6
             if verbose
