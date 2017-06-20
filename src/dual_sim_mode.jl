@@ -100,11 +100,14 @@ function transition_model{T}(ast::AdaptiveStressTest, ::DualSim{T})
     function go_to_state(target_state::ASTState)
         #Get to state s by traversing starting from initial state
         s = get_initial_state(G_RNG)
-        for a = get_action_sequence(target_state)
+        actions = get_action_sequence(target_state)
+        R = 0.0
+        for a in actions
             s, r = get_next_state(s, a, G_RNG)
+            R += r
         end
         @assert s == target_state
-        target_state
+        R, actions
     end
 
     TransitionModel(get_initial_state, get_next_state, isterminal, ast.params.max_steps,
