@@ -42,7 +42,7 @@ type StressTestResults
 
     function StressTestResults(k::Int64)
         obj = new()
-        obj.rewards = Array(Float64, k)
+        obj.rewards = zeros(k) 
         obj.action_seqs = Array(Vector{ASTAction}, k)
         obj.q_values = Array(Vector{Float64}, k)
         obj
@@ -69,9 +69,7 @@ function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::B
     for (tr, r) in dpw.top_paths
         results.rewards[k] = r
         results.action_seqs[k] = get_actions(tr) 
-        @show length(results.action_seqs[k])
         results.q_values[k] = get_q_values(tr)
-        @show length(results.q_values[k])
         k += 1
     end
 

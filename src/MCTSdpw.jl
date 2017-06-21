@@ -90,35 +90,52 @@ function DPW{A<:Action}(p::DPWParams, f::DPWModel, ::Type{A})
     dpw = DPW(s, p, f, rng, tracker, top_paths)
 end
 
-function saveState(old_d::Dict{State,StateNode},new_d::Dict{State,StateNode},s::State)
+#backward-looking
+function saveBackwardState(dpw::DPW, old_d::Dict{State,StateNode}, 
+    new_d::Dict{State,StateNode}, s_current::State)
+    !haskey(old_d, s_current) && return new_d
+    s = s_current
+    while s != nothing
+        new_d[s] = old_d[s]
+        s = s.parent 
+    end
+    new_d
+end
+#forward-looking
+function saveForwardState(old_d::Dict{State,StateNode}, new_d::Dict{State,StateNode}, s::State)
     if !haskey(old_d,s)
         return new_d
-    else
-        new_d[s] = old_d[s]
-        for sa in values(old_d[s].a)
-            for s1 in keys(sa.s)
-                saveState(old_d,new_d,s1)
-            end
+    end 
+    new_d[s] = old_d[s]
+    for sa in values(old_d[s].a)
+        for s1 in keys(sa.s)
+            saveForwardState(old_d,new_d,s1)
         end
-        return new_d
     end
+    new_d
 end
-
-function trace_q_values{A<:Action}(dpw::DPW, actions::Vector{A})
-    q_values = zeros(length(actions))
-    s = dpw.f.model.getInitialState(dpw.rng)
-    for i = 1:length(actions)
-        a = actions[i]
-        q_values[i] = dpw.s[s].a[a].q
-        s, r = dpw.f.model.getNextState(s, a, dpw.rng)
+function saveState(dpw::DPW, old_d::Dict{State,StateNode}, s::State)
+    new_d = Dict{State,StateNode}()
+    saveBackwardState(dpw, old_d, new_d, s)
+    saveForwardState(old_d, new_d, s)
+    new_d
+end
+function trace_q_values(dpw::DPW, s_current::State)
+    q_values = Float64[] 
+    !haskey(dpw.s, s_current) && return q_values
+    s = s_current
+    while s.parent != nothing
+        q = dpw.s[s.parent].a[s.action].q
+        push!(q_values, q)
+        s = s.parent 
     end
-    q_values
+    reverse(q_values)
 end
 
 function selectAction(dpw::DPW, s::State; verbose::Bool=false)
-    if dpw.p.clear_nodes
-        #save s and its successors
-        new_dict = saveState(dpw.s,Dict{State,StateNode}(),s)
+    if false && dpw.p.clear_nodes
+        #save s, its successors, and its ancestors
+        new_dict = saveState(dpw, dpw.s, s)
         empty!(dpw.s) #cleanup
         dpw.s = new_dict
     end
@@ -128,11 +145,17 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
     d = dpw.p.d
     starttime_us = CPUtime_us()
     for i = 1:dpw.p.n
-        empty!(dpw.tracker)
         R, actions = dpw.f.model.goToState(s)
-        #qvals = trace_q_values(dpw, actions)
+
+        #init tracker
+        empty!(dpw.tracker)
         append_actions!(dpw.tracker, actions)
+        qvals = trace_q_values(dpw, s)
+        append_q_values!(dpw.tracker, qvals)
+
         R += simulate(dpw, s, d, verbose=verbose)
+
+        #process tracker
         combine_q_values!(dpw.tracker)
         enqueue!(dpw.top_paths, dpw.tracker, R; make_copy=true)
 

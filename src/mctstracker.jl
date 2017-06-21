@@ -18,9 +18,11 @@ hash(tr::MCTSTracker) = hash(tr.actions)
 ==(tr1::MCTSTracker, tr2::MCTSTracker) = tr1.actions == tr2.actions
 
 push_action!(tr::MCTSTracker, a::Action) = push!(tr.actions, a)
-append_actions!{A<:Action}(tr::MCTSTracker, a::AbstractVector{A}) = append!(tr.actions, a)
 push_q_value!(tr::MCTSTracker, q::Float64) = push!(tr.q_values, q)
 push_q_value2!(tr::MCTSTracker, q2::Float64) = push!(tr.q_values2_rev, q2)
+
+append_actions!{A<:Action}(tr::MCTSTracker, a::AbstractVector{A}) = append!(tr.actions, a)
+append_q_values!(tr::MCTSTracker, q::AbstractVector{Float64}) = append!(tr.q_values, q)
 
 function combine_q_values!(tr::MCTSTracker) 
     if !isempty(tr.q_values2_rev)
