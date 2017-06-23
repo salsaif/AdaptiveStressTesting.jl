@@ -32,38 +32,90 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 # *****************************************************************************
 
-include("Walk1D.jl")
-using Walk1D
-using AdaptiveStressTesting
+"""
+Dual simulation version of the Walk1D example.  Two simulations are doing
+the same random walks. Sim2 has a safety that will kick in on both upper
+and lower bounds, whereas Sim1 only has a safety on the lower bound.
+The dual simulation should be able to identify this difference.
+"""
+module Walk1DDual
 
-const MAXTIME = 25 #sim endtime
-const RNG_LENGTH = 2
-const SIGMA = 1.0 #standard deviation of Gaussian
-const SEED = 0 
+using Distributions
 
-sim_params = Walk1DParams()
-sim_params.startx = 1.0
-sim_params.threshx = 10.0
-sim_params.endtime = MAXTIME
-sim_params.logging = true
+export SafeWalkParams, SafeWalkSim, initialize, update, isterminal, isevent
 
-sim = Walk1DSim(sim_params, SIGMA)
-ast_params = ASTParams(MAXTIME, RNG_LENGTH, SEED, nothing)
-ast = AdaptiveStressTest(ast_params, sim, Walk1D.initialize, Walk1D.update, Walk1D.isterminal)
+type SafeWalkParams
+    startx::Float64
+    threshx::Float64 #+- thresh
+    endtime::Int64
+    logging::Bool
+    safe::Tuple{Bool,Bool} #lower/upperbound safeties
+end
+SafeWalkParams() = SafeWalkParams(1.0, 10.0, 20, false, (false,false)) #set some defaults
 
-sample(ast)
+type SafeWalkSim
+    id::Int64
+    p::SafeWalkParams #parameters
+    x::Float64
+    t::Int64 #num steps
+    distribution::Distribution
+    event::Bool
+    mindist::Float64
+    log::Vector{Any}
+end
 
-mcts_params = DPWParams()
-mcts_params.d = 50
-mcts_params.ec = 100
-mcts_params.n = 100
-mcts_params.k = 0.5
-mcts_params.alpha = 0.85
-mcts_params.kp = 1.0
-mcts_params.alphap = 0.0
-mcts_params.clear_nodes = true
-mcts_params.maxtime_s = realmax(Float64)
-mcts_params.rng_seed = UInt64(0)
-mcts_params.top_k = 10
-result = stress_test(ast, mcts_params)
-reward, action_seq = result.rewards, result.action_seqs
+#Default to zero-mean Gaussian
+function SafeWalkSim(id::Int64, params::SafeWalkParams, sigma::Float64)
+    SafeWalkSim(id, params, Normal(0.0, sigma))
+end
+
+#Option to set own distribution
+function SafeWalkSim(id::Int64, params::SafeWalkParams, distribution::Distribution)
+    SafeWalkSim(id, params, params.startx, 0, distribution, false, realmax(Float64), 
+        Array(Float64,0))
+end
+
+function initialize(sim::SafeWalkSim)
+    sim.t = 0
+    sim.x = sim.p.startx
+    sim.event = false
+    sim.mindist = realmax(Float64)
+    empty!(sim.log)
+    if sim.p.logging
+        push!(sim.log, (sim.x, 0))
+    end
+end
+
+function update(sim::SafeWalkSim)
+    sim.t += 1
+    r = rand(sim.distribution)
+    sim.x += r
+    prob = pdf(sim.distribution, r)
+
+    #pull back to center gently if safety is on
+    if sim.p.safe[1] && sim.x <= sim.p.startx
+        sim.x -= r/2 
+    elseif sim.p.safe[2] && sim.x >= sim.p.startx
+        sim.x -= r/2 
+    end
+
+    dist = max(sim.p.threshx - abs(sim.x), 0.0) #non-negative
+    if sim.p.logging
+        push!(sim.log, (sim.x, dist))
+    end
+
+    sim.event |= isevent(sim)
+    sim.mindist = min(sim.mindist, dist)
+
+    return (prob, sim.event, sim.mindist)
+end
+
+function isevent(sim::SafeWalkSim)
+    abs(sim.x) >= sim.p.threshx #out-of-bounds in +-
+end
+
+function isterminal(sim::SafeWalkSim)
+    sim.t >= sim.p.endtime
+end
+
+end #module

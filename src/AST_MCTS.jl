@@ -35,27 +35,73 @@
 using MCTSdpw
 
 type StressTestResults
-    reward::Float64
-    action_seq::Vector{ASTAction}
-    q_values::Vector{Float64}
+    #vector of top k paths
+    rewards::Vector{Float64}
+    action_seqs::Vector{Vector{ASTAction}}
+    q_values::Vector{Vector{Float64}}
+
+    function StressTestResults(k::Int64)
+        obj = new()
+        obj.rewards = zeros(k) 
+        obj.action_seqs = Array(Vector{ASTAction}, k)
+        obj.q_values = Array(Vector{Float64}, k)
+        obj
+    end
 end
 
 uniform_getAction(ast::AdaptiveStressTest) = uniform_getAction(ast.rsg)
 
 function uniform_getAction(rsg::RSG)
-  policy(s::ASTState, rng::AbstractRNG) = random_action(rsg) #rng not used
-  return policy #function compatible with getAction() in MDP and MCTSdpw
+    policy(s::ASTState, rng::AbstractRNG) = random_action(rsg) #rng not used
+    policy #function compatible with getAction() in MDP and MCTSdpw
 end
 
 #Starts MCTS
 function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
-  dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), uniform_getAction(ast.rsg))
-  dpw = DPW(mcts_params, dpw_model)
-  qvalues = Float64[] 
-  (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, 
-    (x,y)->selectAction(x,y; q_listener=q->push!(qvalues, q)), verbose=verbose)
-  action_seq = convert(Vector{ASTAction}, action_seq) #from Vector{Action}
-  results = StressTestResults(mcts_reward, action_seq, qvalues)
-  results
+    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
+        uniform_getAction(ast.rsg))
+    dpw = DPW(mcts_params, dpw_model, ASTAction)
+    (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, 
+        (x,y)->selectAction(x,y), verbose=verbose)
+
+    results = StressTestResults(mcts_params.top_k)
+    k = 1
+    for (tr, r) in dpw.top_paths
+        results.rewards[k] = r
+        results.action_seqs[k] = get_actions(tr) 
+        results.q_values[k] = get_q_values(tr)
+        k += 1
+    end
+
+    #sanity check
+    if mcts_reward >= results.rewards[1]
+        warn("mcts_reward=$(mcts_reward), top reward=$(results.rewards[end])")
+    end
+
+    results
 end
 
+#experimental: try not stepping
+function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
+    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
+        uniform_getAction(ast.rsg))
+
+    mcts_params.n *= ast.params.max_steps 
+    dpw = DPW(mcts_params, dpw_model, ASTAction)
+
+    s = dpw.f.model.getInitialState(dpw.rng)
+    selectAction(dpw, s, verbose=verbose)
+
+    results = StressTestResults(mcts_params.top_k)
+    k = 1
+    for (tr, r) in dpw.top_paths
+        results.rewards[k] = r
+        results.action_seqs[k] = get_actions(tr) 
+        #@show length(results.action_seqs[k])
+        results.q_values[k] = get_q_values(tr)
+        #@show length(results.q_values[k])
+        k += 1
+    end
+
+    results
+end
