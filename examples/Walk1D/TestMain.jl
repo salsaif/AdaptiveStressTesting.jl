@@ -66,4 +66,4 @@ mcts_params.maxtime_s = realmax(Float64)
 mcts_params.rng_seed = UInt64(0)
 mcts_params.top_k = 10
 result = stress_test(ast, mcts_params)
-reward, action_seq = result.rewards, result.action_seqs
+reward, action_seq = result.rewards[1], result.action_seqs[1]
