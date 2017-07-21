@@ -83,10 +83,12 @@ end
 
 #experimental: try not stepping
 function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
+    mcts_params.clear_nodes = false
+    mcts_params.n *= ast.params.max_steps 
+
     dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
         uniform_getAction(ast.rsg))
 
-    mcts_params.n *= ast.params.max_steps 
     dpw = DPW(mcts_params, dpw_model, ASTAction)
 
     s = dpw.f.model.getInitialState(dpw.rng)

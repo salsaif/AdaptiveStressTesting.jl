@@ -133,7 +133,7 @@ function trace_q_values(dpw::DPW, s_current::State)
 end
 
 function selectAction(dpw::DPW, s::State; verbose::Bool=false)
-    if false && dpw.p.clear_nodes
+    if dpw.p.clear_nodes
         #save s, its successors, and its ancestors
         new_dict = saveState(dpw, dpw.s, s)
         empty!(dpw.s) #cleanup
