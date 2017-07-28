@@ -39,6 +39,7 @@ const N_SAMPLES = 5
 const EXAMPLESDIR = joinpath(dirname(@__FILE__), "..", "examples")
 
 include(joinpath(EXAMPLESDIR, "Walk1D", "TestMain.jl"))
+mcts_params.top_k = 1
 
 mc_samples = sample(ast, N_SAMPLES)
 
@@ -48,5 +49,5 @@ mc_samples = sample(ast, N_SAMPLES)
 #AST should always end by pushing over threshold
 for i = 1:N_SAMPLES
   result = stress_test(ast, mcts_params)
-  @test length(result.action_seq) < MAXTIME
+  @test length(result.action_seqs[1]) < MAXTIME
 end
