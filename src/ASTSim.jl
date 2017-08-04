@@ -97,7 +97,7 @@ end
 
 function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
     reward2, actions2 = simulate(ast.transition_model, ActionSequence(actions), 
-        action_seq_policy, verbose=verbose)
+        action_seq_policy, policy_length=length(actions), verbose=verbose)
     actions2 = convert(Vector{ASTAction}, actions2) #from Vector{Action}
     @assert actions == actions2 #check replay
     (reward2, actions2)
