@@ -63,10 +63,11 @@ function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::B
     dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg),
         uniform_getAction(ast.rsg))
     dpw = DPW(mcts_params, dpw_model, ASTAction)
-    (mcts_reward, action_seq) = simulate(dpw.f.model, dpw,
+    (mcts_reward, action_seq, rewards) = simulate(dpw.f.model, dpw,
         (x,y)->selectAction(x,y), verbose=verbose)
 
     results = StressTestResults(mcts_params.top_k)
+    results.r_history = rewards
     k = 1
     for (tr, r) in dpw.top_paths
         results.rewards[k] = r

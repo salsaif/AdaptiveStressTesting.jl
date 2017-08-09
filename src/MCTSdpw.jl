@@ -181,7 +181,7 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
 
     qmax, i = findmax(Q)
     A[i]::Action # choose action with highest approximate value
-    return rewards
+    return rewards, A[i]
 end
 
 function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
