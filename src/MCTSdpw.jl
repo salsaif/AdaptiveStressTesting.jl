@@ -22,7 +22,7 @@ typealias Depth Int64
 
 type DPWParams
     d::Depth                    # search depth
-    ec::Float64                 # exploration constant- governs trade-off between 
+    ec::Float64                 # exploration constant- governs trade-off between
                                 #exploration and exploitation in MCTS
     n::Int64                    # number of iterations
     k::Float64                  # first constant controlling action generation
@@ -36,9 +36,9 @@ type DPWParams
     top_k::Int64                #track the top k executions
 
     DPWParams() = new()
-    function DPWParams(d::Depth, ec::Float64, n::Int64, k::Float64, alpha::Float64, 
-        kp::Float64,alphap::Float64, clear_nodes::Bool, maxtime_s::Float64, 
-        rng_seed::UInt64, top_k::Int64=10) 
+    function DPWParams(d::Depth, ec::Float64, n::Int64, k::Float64, alpha::Float64,
+        kp::Float64,alphap::Float64, clear_nodes::Bool, maxtime_s::Float64,
+        rng_seed::UInt64, top_k::Int64=10)
         new(d, ec, n, k, alpha, kp, alphap, clear_nodes, maxtime_s, rng_seed, top_k)
     end
 end
@@ -46,7 +46,7 @@ end
 type DPWModel
     model::TransitionModel      # generative model
     getAction::Function         # returns action for rollout policy
-    getNextAction::Function     # generates the next action when widening of the 
+    getNextAction::Function     # generates the next action when widening of the
                                 #action space is appropriate
 end
 
@@ -81,23 +81,23 @@ type DPW{A<:Action}
     top_paths::BoundedPriorityQueue{MCTSTracker{A},Float64}
 end
 
-function DPW{A<:Action}(p::DPWParams, f::DPWModel, ::Type{A}) 
+function DPW{A<:Action}(p::DPWParams, f::DPWModel, ::Type{A})
     s = Dict{State,StateNode}()
     rng = MersenneTwister(p.rng_seed)
     tracker = MCTSTracker{A}()
-    top_paths = BoundedPriorityQueue{MCTSTracker{A},Float64}(p.top_k, 
+    top_paths = BoundedPriorityQueue{MCTSTracker{A},Float64}(p.top_k,
         Base.Order.Forward) #keep highest
     dpw = DPW(s, p, f, rng, tracker, top_paths)
 end
 
 #backward-looking
-function saveBackwardState(dpw::DPW, old_d::Dict{State,StateNode}, 
+function saveBackwardState(dpw::DPW, old_d::Dict{State,StateNode},
     new_d::Dict{State,StateNode}, s_current::State)
     !haskey(old_d, s_current) && return new_d
     s = s_current
     while s != nothing
         new_d[s] = old_d[s]
-        s = s.parent 
+        s = s.parent
     end
     new_d
 end
@@ -105,7 +105,7 @@ end
 function saveForwardState(old_d::Dict{State,StateNode}, new_d::Dict{State,StateNode}, s::State)
     if !haskey(old_d,s)
         return new_d
-    end 
+    end
     new_d[s] = old_d[s]
     for sa in values(old_d[s].a)
         for s1 in keys(sa.s)
@@ -121,13 +121,13 @@ function saveState(dpw::DPW, old_d::Dict{State,StateNode}, s::State)
     new_d
 end
 function trace_q_values(dpw::DPW, s_current::State)
-    q_values = Float64[] 
+    q_values = Float64[]
     !haskey(dpw.s, s_current) && return q_values
     s = s_current
     while s.parent != nothing
         q = dpw.s[s.parent].a[s.action].q
         push!(q_values, q)
-        s = s.parent 
+        s = s.parent
     end
     reverse(q_values)
 end
@@ -140,10 +140,11 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
         dpw.s = new_dict
     end
 
-    # This function calls simulate and chooses the approximate best action 
+    # This function calls simulate and chooses the approximate best action
     #from the reward approximations
     d = dpw.p.d
     starttime_us = CPUtime_us()
+    rewards = []
     for i = 1:dpw.p.n
         R, actions = dpw.f.model.goToState(s)
 
@@ -158,7 +159,7 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
         #process tracker
         combine_q_values!(dpw.tracker)
         enqueue!(dpw.top_paths, dpw.tracker, R; make_copy=true)
-
+        append!(rewards, collect(values(dpw.top_paths)))
         if CPUtime_us() - starttime_us > dpw.p.maxtime_s * 1e6
             if verbose
                 println("Iterations completed: $i")
@@ -176,10 +177,11 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
         Q[i] = cS.a[A[i]].q
     end
 
-    @assert !isempty(Q) #something went wrong... 
+    @assert !isempty(Q) #something went wrong...
 
     qmax, i = findmax(Q)
     A[i]::Action # choose action with highest approximate value
+    return rewards
 end
 
 function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
@@ -187,7 +189,7 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
     if d == 0 || dpw.f.model.isEndState(s)
         return 0.0::Reward
     end
-    if !haskey(dpw.s,s) # if state is not yet explored, add it to the set of states, 
+    if !haskey(dpw.s,s) # if state is not yet explored, add it to the set of states,
         #perform a rollout
         dpw.s[s] = StateNode()
         return rollout(dpw,s,d)::Reward
@@ -217,10 +219,10 @@ function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
     qval = dpw.s[s].a[a].q
     push_q_value!(dpw.tracker, qval) #track q_values
 
-    if length(dpw.s[s].a[a].s) <= dpw.p.kp*dpw.s[s].a[a].n^dpw.p.alphap 
+    if length(dpw.s[s].a[a].s) <= dpw.p.kp*dpw.s[s].a[a].n^dpw.p.alphap
         #criterion for new transition state consideration
         sp,r = dpw.f.model.getNextState(s,a,dpw.rng) # choose a new state and get reward
-        if !haskey(dpw.s[s].a[a].s,sp) # if transition state not yet explored, add to 
+        if !haskey(dpw.s[s].a[a].s,sp) # if transition state not yet explored, add to
             #set and update reward
             dpw.s[s].a[a].s[sp] = StateActionStateNode()
             dpw.s[s].a[a].s[sp].r = r
