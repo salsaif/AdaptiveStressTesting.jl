@@ -39,12 +39,14 @@ type StressTestResults
     rewards::Vector{Float64}
     action_seqs::Vector{Vector{ASTAction}}
     q_values::Vector{Vector{Float64}}
+    r_history::Array{Float64}
 
     function StressTestResults(k::Int64)
         obj = new()
-        obj.rewards = zeros(k) 
+        obj.rewards = zeros(k)
         obj.action_seqs = Array(Vector{ASTAction}, k)
         obj.q_values = Array(Vector{Float64}, k)
+        obj.r_history = Array{Float64}()
         obj
     end
 end
@@ -58,17 +60,17 @@ end
 
 #Starts MCTS
 function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
-    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
+    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg),
         uniform_getAction(ast.rsg))
     dpw = DPW(mcts_params, dpw_model, ASTAction)
-    (mcts_reward, action_seq) = simulate(dpw.f.model, dpw, 
+    (mcts_reward, action_seq) = simulate(dpw.f.model, dpw,
         (x,y)->selectAction(x,y), verbose=verbose)
 
     results = StressTestResults(mcts_params.top_k)
     k = 1
     for (tr, r) in dpw.top_paths
         results.rewards[k] = r
-        results.action_seqs[k] = get_actions(tr) 
+        results.action_seqs[k] = get_actions(tr)
         results.q_values[k] = get_q_values(tr)
         k += 1
     end
@@ -84,21 +86,22 @@ end
 #experimental: try not stepping
 function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::Bool=true)
     mcts_params.clear_nodes = false
-    mcts_params.n *= ast.params.max_steps 
+    mcts_params.n *= ast.params.max_steps
 
-    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg), 
+    dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg),
         uniform_getAction(ast.rsg))
 
     dpw = DPW(mcts_params, dpw_model, ASTAction)
 
     s = dpw.f.model.getInitialState(dpw.rng)
-    selectAction(dpw, s, verbose=verbose)
+    rewards = selectAction(dpw, s, verbose=verbose)
 
     results = StressTestResults(mcts_params.top_k)
+    results.r_history = rewards
     k = 1
     for (tr, r) in dpw.top_paths
         results.rewards[k] = r
-        results.action_seqs[k] = get_actions(tr) 
+        results.action_seqs[k] = get_actions(tr)
         #@show length(results.action_seqs[k])
         results.q_values[k] = get_q_values(tr)
         #@show length(results.q_values[k])
