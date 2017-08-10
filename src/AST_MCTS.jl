@@ -95,7 +95,7 @@ function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::
     dpw = DPW(mcts_params, dpw_model, ASTAction)
 
     s = dpw.f.model.getInitialState(dpw.rng)
-    rewards = selectAction(dpw, s, verbose=verbose)
+    rewards, a = selectAction(dpw, s, verbose=verbose)
 
     results = StressTestResults(mcts_params.top_k)
     results.r_history = rewards
