@@ -180,7 +180,7 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
     @assert !isempty(Q) #something went wrong...
 
     qmax, i = findmax(Q)
-    A[i]::Action # choose action with highest approximate value
+    # A[i]::Action # choose action with highest approximate value
     return rewards, A[i]
 end
 

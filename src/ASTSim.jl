@@ -73,7 +73,7 @@ function sample(ast::AdaptiveStressTest, nsamples::Int64; print_rate::Int64=1)
         if mod(i, print_rate) == 1
             println("sample ", i, " of ", nsamples)
         end
-        results[i] = sample(ast, verbose=false) 
+        results[i] = sample(ast, verbose=false)
     end
     results #vector of tuples(reward, actions)
 end
@@ -96,10 +96,9 @@ function sample_timed(ast::AdaptiveStressTest, maxtime_s::Float64; print_rate::I
 end
 
 function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
-    reward2, actions2 = simulate(ast.transition_model, ActionSequence(actions), 
+    reward2, actions2, r = simulate(ast.transition_model, ActionSequence(actions), 
         action_seq_policy, verbose=verbose)
     actions2 = convert(Vector{ASTAction}, actions2) #from Vector{Action}
     @assert actions == actions2 #check replay
     (reward2, actions2)
 end
-
