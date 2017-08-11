@@ -49,7 +49,7 @@ ActionSequence{A <: Action}(action_seq::Vector{A}) = ActionSequence(action_seq, 
 function action_seq_policy(action_seq::ActionSequence)
     action = action_seq.sequence[action_seq.index]
     action_seq.index += 1
-    return action
+    return [], action
 end
 
 # Compatible with MDP / MCTSdpw
@@ -96,7 +96,7 @@ function sample_timed(ast::AdaptiveStressTest, maxtime_s::Float64; print_rate::I
 end
 
 function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
-    reward2, actions2, r = simulate(ast.transition_model, ActionSequence(actions), 
+    reward2, actions2, r = simulate(ast.transition_model, ActionSequence(actions),
         action_seq_policy, verbose=verbose)
     actions2 = convert(Vector{ASTAction}, actions2) #from Vector{Action}
     @assert actions == actions2 #check replay

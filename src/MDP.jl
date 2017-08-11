@@ -45,7 +45,7 @@ function simulate(model::TransitionModel,
     model.isEndState(s) && break
   end
 
-  return cum_reward::Reward, actions::Vector{Action}, r_history::Array{Float64}
+  return cum_reward::Reward, actions::Vector{Action}, r_history
 end
 
 
