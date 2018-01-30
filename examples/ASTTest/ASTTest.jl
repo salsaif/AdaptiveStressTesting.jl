@@ -36,12 +36,12 @@ module ASTTest
 
 export TestSimParams, TestSim, initialize, update, isterminal
 
-type TestSimParams
+mutable struct TestSimParams
   endtime::Int64
 end
 TestSimParams() = TestSimParams(10)
 
-type TestSim
+mutable struct TestSim
   p::TestSimParams #parameters
   t::Int64
 end

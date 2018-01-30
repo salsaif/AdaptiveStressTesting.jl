@@ -24,7 +24,7 @@ abstract type Action end
 function simulate(model::TransitionModel,
                   p::Params,
                   policy::Policy,
-                  rng::AbstractRNG=MersenneTwister();
+                  rng::AbstractRNG=MersenneTwister(0);
                   policy_length::Int=typemax(Int),
                   verbose::Bool=false)
 

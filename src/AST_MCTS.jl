@@ -43,8 +43,8 @@ type StressTestResults
     function StressTestResults(k::Int64)
         obj = new()
         obj.rewards = zeros(k) 
-        obj.action_seqs = Array(Vector{ASTAction}, k)
-        obj.q_values = Array(Vector{Float64}, k)
+        obj.action_seqs = Array{Vector{ASTAction}}(k)
+        obj.q_values = Array{Vector{Float64}}(k)
         obj
     end
 end

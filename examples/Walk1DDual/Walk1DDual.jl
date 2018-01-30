@@ -44,7 +44,7 @@ using Distributions
 
 export SafeWalkParams, SafeWalkSim, initialize, update, isterminal, isevent
 
-type SafeWalkParams
+mutable struct SafeWalkParams
     startx::Float64
     threshx::Float64 #+- thresh
     endtime::Int64
@@ -53,7 +53,7 @@ type SafeWalkParams
 end
 SafeWalkParams() = SafeWalkParams(1.0, 10.0, 20, false, (false,false)) #set some defaults
 
-type SafeWalkSim
+mutable struct SafeWalkSim
     id::Int64
     p::SafeWalkParams #parameters
     x::Float64
