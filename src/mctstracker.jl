@@ -1,11 +1,11 @@
 import Base: empty!, hash, ==
 
-type MCTSTracker{A<:Action}
+mutable struct MCTSTracker{A<:Action}
     actions::Vector{A}
     q_values::Vector{Float64}
     q_values2_rev::Vector{Float64} #these are stored in reverse, append to q_values
 
-    MCTSTracker() = new(A[], Float64[], Float64[])
+    MCTSTracker{A}() where {A<:Action} = new(A[], Float64[], Float64[])
 end
 
 function empty!(tr::MCTSTracker)

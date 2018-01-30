@@ -18,9 +18,9 @@ using RLESUtils, BoundedPriorityQueues
 
 import MDP: simulate
 
-typealias Depth Int64
+const Depth = Int64
 
-type DPWParams
+mutable struct DPWParams
     d::Depth                    # search depth
     ec::Float64                 # exploration constant- governs trade-off between 
                                 #exploration and exploitation in MCTS
@@ -43,27 +43,27 @@ type DPWParams
     end
 end
 
-type DPWModel
+mutable struct DPWModel
     model::TransitionModel      # generative model
     getAction::Function         # returns action for rollout policy
     getNextAction::Function     # generates the next action when widening of the 
                                 #action space is appropriate
 end
 
-type StateActionStateNode
+mutable struct StateActionStateNode
     n::UInt64
     r::Float64
     StateActionStateNode() = new(0,0)
 end
 
-type StateActionNode
+mutable struct StateActionNode
     s::Dict{State,StateActionStateNode}
     n::UInt64
     q::Float64
 end
 StateActionNode() = StateActionNode(Dict{State, StateActionStateNode}(), 0, 0)
 
-type StateNode
+mutable struct StateNode
     a::Dict{Action,StateActionNode}
     n::UInt64
 end
@@ -71,7 +71,7 @@ StateNode() = StateNode(Dict{Action, StateActionNode}(), 0)
 
 include("mctstracker.jl")
 
-type DPW{A<:Action}
+mutable struct DPW{A<:Action}
     s::Dict{State,StateNode}
     p::DPWParams
     f::DPWModel

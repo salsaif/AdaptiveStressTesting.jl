@@ -2,7 +2,7 @@ module MDP
 
 export TransitionModel, Params, State, Action, Reward, Policy, solve, simulate
 
-type TransitionModel
+mutable struct TransitionModel
     getInitialState::Function
     getNextState::Function
     isEndState::Function
@@ -14,12 +14,12 @@ function TransitionModel(getInitialState::Function, getNextState::Function,
     TransitionModel(getInitialState, getNextState, getNextisEndStateAction, maxSteps, identity)
 end
 
-typealias Policy Function
-typealias Reward Float64
-typealias Params Any
+const Policy = Function
+const Reward = Float64
+const  Params = Any
 
-abstract State
-abstract Action
+abstract type State end
+abstract type Action end
 
 function simulate(model::TransitionModel,
                   p::Params,

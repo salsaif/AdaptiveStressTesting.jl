@@ -52,7 +52,7 @@ using RLESUtils, RNGWrapper
 import Base: hash, isequal, ==
 
 const DEFAULT_RSGLENGTH = 3
-const G_RNG = MersenneTwister() #not used
+const G_RNG = MersenneTwister(0) #not used
 
 type ASTParams
     max_steps::Int64 # safety for runaways in sim
