@@ -34,7 +34,7 @@
 
 using MCTSdpw
 
-type StressTestResults
+mutable struct StressTestResults
     #vector of top k paths
     rewards::Vector{Float64}
     action_seqs::Vector{Vector{ASTAction}}

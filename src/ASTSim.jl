@@ -35,12 +35,12 @@
 using RLESUtils, CPUTimeUtils
 using MDP
 
-type SampleResults
+mutable struct SampleResults
     reward::Float64
     action_seq::Vector{ASTAction}
 end
 
-type ActionSequence{A <: Action}
+mutable struct ActionSequence{A <: Action}
     sequence::Vector{A}
     index::Int64
 end
