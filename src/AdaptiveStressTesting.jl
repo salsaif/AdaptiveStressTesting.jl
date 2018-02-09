@@ -227,4 +227,7 @@ export uniform_getAction, DPWParams, stress_test, stress_test2, StressTestResult
 include("dual_sim_mode.jl")
 export DualSim, get_dualsim_reward_default
 
+include("vis.jl")
+export d3tree
+
 end #module

@@ -39,6 +39,7 @@ mutable struct StressTestResults
     rewards::Vector{Float64}
     action_seqs::Vector{Vector{ASTAction}}
     q_values::Vector{Vector{Float64}}
+    dpw::DPW
 
     function StressTestResults(k::Int64)
         obj = new()
@@ -104,6 +105,7 @@ function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::
         #@show length(results.q_values[k])
         k += 1
     end
+    results.dpw = dpw
 
     results
 end
