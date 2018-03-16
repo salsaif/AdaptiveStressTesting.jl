@@ -199,7 +199,7 @@ function get_action_sequence(s::ASTState)
 end
 
 hash(a::ASTAction) = hash(a.rsg)
-function hash(A::Vector{ASTAction}) 
+function hash(A::Vector{ASTAction})
     h = hash(A[1])
     for i = 2:length(A)
         h = hash(h, hash(A[i]))
@@ -227,7 +227,5 @@ export uniform_getAction, DPWParams, stress_test, stress_test2, StressTestResult
 include("dual_sim_mode.jl")
 export DualSim, get_dualsim_reward_default
 
-include("vis.jl")
-export d3tree
 
 end #module
