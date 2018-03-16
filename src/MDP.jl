@@ -2,29 +2,29 @@ module MDP
 
 export TransitionModel, Params, State, Action, Reward, Policy, solve, simulate
 
-type TransitionModel
-  getInitialState::Function
-  getNextState::Function
-  isEndState::Function
-  maxSteps::Int64 #maximum number of steps.  Acts as a safety for runaways
-  goToState::Function
+mutable struct TransitionModel
+    getInitialState::Function
+    getNextState::Function
+    isEndState::Function
+    maxSteps::Int64 #maximum number of steps.  Acts as a safety for runaways
+    goToState::Function
 end
 function TransitionModel(getInitialState::Function, getNextState::Function,
                          isEndState::Function, maxSteps::Int64)
-  TransitionModel(getInitialState, getNextState, getNextisEndStateAction, maxSteps, identity)
+    TransitionModel(getInitialState, getNextState, getNextisEndStateAction, maxSteps, identity)
 end
 
-typealias Policy Function
-typealias Reward Float64
-typealias Params Any
+const Policy = Function
+const Reward = Float64
+const  Params = Any
 
-abstract State
-abstract Action
+abstract type State end
+abstract type Action end
 
 function simulate(model::TransitionModel,
                   p::Params,
                   policy::Policy,
-                  rng::AbstractRNG = MersenneTwister();
+                  rng::AbstractRNG = MersenneTwister(0);
                   verbose::Bool = false)
 
   # This function simulates the model for nSteps using the specified policy and

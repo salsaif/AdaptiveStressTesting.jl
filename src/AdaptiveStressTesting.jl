@@ -52,9 +52,9 @@ using RLESUtils, RNGWrapper
 import Base: hash, isequal, ==
 
 const DEFAULT_RSGLENGTH = 3
-const G_RNG = MersenneTwister() #not used
+const G_RNG = MersenneTwister(0) #not used
 
-type ASTParams
+mutable struct ASTParams
     max_steps::Int64 # safety for runaways in sim
     rsg_length::Int64 # dictates number of unique available random seeds
     init_seed::Int64 # initial value of seed on construct
@@ -62,7 +62,7 @@ type ASTParams
 end
 ASTParams() = ASTParams(0, DEFAULT_RSGLENGTH, 0, nothing)
 
-type AdaptiveStressTest
+mutable struct AdaptiveStressTest
     params::ASTParams
     sim
     sim_hash::UInt64 #keeps the sim in sync
@@ -98,12 +98,12 @@ type AdaptiveStressTest
     end
 end
 
-type ASTAction <: Action
+mutable struct ASTAction <: Action
     rsg::RSG
 end
 ASTAction(len::Int64=DEFAULT_RSGLENGTH, seed::Int64=0) = ASTAction(RSG(len, seed))
 
-type ASTState <: State
+mutable struct ASTState <: State
     t_index::Int64 #sanity check that at least the time corresponds
     hash::UInt64 #hash sim state to match with ASTState
     parent::Union{Void,ASTState} #parent state, root=nothing
@@ -226,5 +226,8 @@ export uniform_getAction, DPWParams, stress_test, stress_test2, StressTestResult
 
 include("dual_sim_mode.jl")
 export DualSim, get_dualsim_reward_default
+
+include("vis.jl")
+export d3tree
 
 end #module

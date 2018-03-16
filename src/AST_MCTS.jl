@@ -34,7 +34,7 @@
 
 using MCTSdpw
 
-type StressTestResults
+mutable struct StressTestResults
     #vector of top k paths
     rewards::Vector{Float64}
     action_seqs::Vector{Vector{ASTAction}}
@@ -45,8 +45,8 @@ type StressTestResults
     function StressTestResults(k::Int64)
         obj = new()
         obj.rewards = zeros(k)
-        obj.action_seqs = Array(Vector{ASTAction}, k)
-        obj.q_values = Array(Vector{Float64}, k)
+        obj.action_seqs = Array{Vector{ASTAction}}(k)
+        obj.q_values = Array{Vector{Float64}}(k)
         obj.r_history = Array{Float64}()
         obj.maxr_history = Array{Float64}()
         obj
@@ -111,6 +111,7 @@ function stress_test2(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::
         #@show length(results.q_values[k])
         k += 1
     end
+    results.dpw = dpw
 
     results
 end

@@ -35,12 +35,12 @@
 using RLESUtils, CPUTimeUtils
 using MDP
 
-type SampleResults
+mutable struct SampleResults
     reward::Float64
     action_seq::Vector{ASTAction}
 end
 
-type ActionSequence{A <: Action}
+mutable struct ActionSequence{A <: Action}
     sequence::Vector{A}
     index::Int64
 end
@@ -96,8 +96,8 @@ function sample_timed(ast::AdaptiveStressTest, maxtime_s::Float64; print_rate::I
 end
 
 function play_sequence{A <: Action}(ast::AdaptiveStressTest, actions::Vector{A}; verbose::Bool=true)
-    reward2, actions2, r = simulate(ast.transition_model, ActionSequence(actions),
-        action_seq_policy, verbose=verbose)
+    reward2, actions2 = simulate(ast.transition_model, ActionSequence(actions),
+        action_seq_policy, policy_length=length(actions), verbose=verbose)
     actions2 = convert(Vector{ASTAction}, actions2) #from Vector{Action}
     @assert actions == actions2 #check replay
     (reward2, actions2)

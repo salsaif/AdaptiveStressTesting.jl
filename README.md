@@ -30,12 +30,19 @@ When you're ready, run the stess test:
 ```julia
 result = stress_test(ast, mcts_params)
 ```
-where ``mcts_params`` is a ``DPWParams`` object containing the Monte Carlo tree search parameters.
-The result object contains the total reward, action sequence, and q-values of the found execution path of the simulator.
+where ``mcts_params`` is a ``DPWParams`` object containing the Monte Carlo tree search parameters.  This method applies a heuristic that tries to push the search deeper into the time sequence.  Specifically, the algorithm will commit to the best child found after ``iterations``.  Iterations thereafter will assume that the step is fixed and root the MCTS search starting at the next time step.  If you have episodes with many time steps, this may be a good heuristic to try.
+
+The traditional MCTS method can be called using
 ```julia
-result.reward
-result.action_seq
-result.q_values
+result = stress_test2(ast, mcts_params)
+```
+All sampling will start at the first time step thus giving global optimization properties as the number of iterations goes to infinity.
+
+The result object contains the total reward, action sequence, and q-values for the best k execution paths found (includes all rollouts sampled). 
+```julia
+result.rewards[k]
+result.action_seqs[k]
+result.q_values[k]
 ```
 
 For full working examples, see the package's ``examples`` folder.

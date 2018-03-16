@@ -45,7 +45,7 @@ using Distributions
 
 export Walk1DParams, Walk1DSim, initialize, update, isterminal, isevent
 
-type Walk1DParams
+mutable struct Walk1DParams
   startx::Float64
   threshx::Float64 #+- thresh
   endtime::Int64
@@ -53,7 +53,7 @@ type Walk1DParams
 end
 Walk1DParams() = Walk1DParams(1.0, 10.0, 20, false)
 
-type Walk1DSim
+mutable struct Walk1DSim
   p::Walk1DParams #parameters
   x::Float64
   t::Int64 #num steps
@@ -68,7 +68,7 @@ end
 
 #Option to set own distribution
 function Walk1DSim(params::Walk1DParams, distribution::Distribution)
-  Walk1DSim(params, params.startx, 0, distribution, Array(Float64,0))
+  Walk1DSim(params, params.startx, 0, distribution, Array{Float64}(0))
 end
 
 function initialize(sim::Walk1DSim)
