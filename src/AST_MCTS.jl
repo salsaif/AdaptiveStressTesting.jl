@@ -40,6 +40,7 @@ type StressTestResults
     action_seqs::Vector{Vector{ASTAction}}
     q_values::Vector{Vector{Float64}}
     r_history::Array{Float64}
+    maxr_history::Array{Float64}
 
     function StressTestResults(k::Int64)
         obj = new()
@@ -47,6 +48,7 @@ type StressTestResults
         obj.action_seqs = Array(Vector{ASTAction}, k)
         obj.q_values = Array(Vector{Float64}, k)
         obj.r_history = Array{Float64}()
+        obj.maxr_history = Array{Float64}()
         obj
     end
 end
@@ -63,11 +65,12 @@ function stress_test(ast::AdaptiveStressTest, mcts_params::DPWParams; verbose::B
     dpw_model = DPWModel(transition_model(ast), uniform_getAction(ast.rsg),
         uniform_getAction(ast.rsg))
     dpw = DPW(mcts_params, dpw_model, ASTAction)
-    (mcts_reward, action_seq, rewards) = simulate(dpw.f.model, dpw,
+    (mcts_reward, action_seq, maxrewards, rewards) = simulate(dpw.f.model, dpw,
         (x,y)->selectAction(x,y), verbose=verbose)
 
     results = StressTestResults(mcts_params.top_k)
     results.r_history = rewards
+    results.maxr_history = maxrewards
     k = 1
     for (tr, r) in dpw.top_paths
         results.rewards[k] = r

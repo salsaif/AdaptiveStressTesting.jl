@@ -32,20 +32,22 @@ function simulate(model::TransitionModel,
   cum_reward = 0.0
   actions = Action[]
   r_history = []
+  maxr_history = []
   s = model.getInitialState(rng)
   for i = 1:model.maxSteps
     if verbose
       println("Step: $i of $(model.maxSteps)")
     end
-    rewards, a = policy(p, s)
+    maxrewards, rewards, a = policy(p, s)
     push!(actions, a) #output actions actually taken
     s, r = model.getNextState(s, a, rng)
     cum_reward += r
     append!(r_history, rewards)
+    append!(maxr_history, maxrewards)
     model.isEndState(s) && break
   end
 
-  return cum_reward::Reward, actions::Vector{Action}, r_history
+  return cum_reward::Reward, actions::Vector{Action}, maxr_history, r_history
 end
 
 

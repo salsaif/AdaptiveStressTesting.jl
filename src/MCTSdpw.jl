@@ -145,6 +145,7 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
     d = dpw.p.d
     starttime_us = CPUtime_us()
     rewards = []
+    maxrewards = []
     for i = 1:dpw.p.n
         R, actions = dpw.f.model.goToState(s)
 
@@ -155,11 +156,11 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
         append_q_values!(dpw.tracker, qvals)
 
         R += simulate(dpw, s, d, verbose=verbose)
-
+        append!(rewards, R)
         #process tracker
         combine_q_values!(dpw.tracker)
         enqueue!(dpw.top_paths, dpw.tracker, R; make_copy=true)
-        append!(rewards, collect(values(dpw.top_paths)))
+        append!(maxrewards, collect(values(dpw.top_paths)))
         if CPUtime_us() - starttime_us > dpw.p.maxtime_s * 1e6
             if verbose
                 println("Iterations completed: $i")
@@ -181,7 +182,7 @@ function selectAction(dpw::DPW, s::State; verbose::Bool=false)
 
     qmax, i = findmax(Q)
     A[i]::Action # choose action with highest approximate value
-    return rewards, A[i]
+    return maxrewards, rewards, A[i]
 end
 
 function simulate(dpw::DPW,s::State,d::Depth;verbose::Bool=false)
